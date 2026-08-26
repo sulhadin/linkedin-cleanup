@@ -1,13 +1,13 @@
 import { useCallback, useRef, useState } from 'react'
-import { subscribeToJob, type JobEvent, type RemovalResult } from './api.ts'
+import { subscribeToJob, type ActionResult, type JobEvent } from './api.ts'
 
 export type JobView = {
   id: string
-  kind: 'scrape' | 'remove'
+  kind: 'scan' | 'act' | 'enrich'
   lines: string[]
   done: number
   total: number | null
-  results: RemovalResult[]
+  results: ActionResult[]
   status: 'running' | 'done' | 'error'
   summary: string | null
 }
@@ -17,7 +17,7 @@ export function useJob(onFinished?: () => void) {
   const unsubscribe = useRef<(() => void) | null>(null)
 
   const attach = useCallback(
-    (id: string, kind: 'scrape' | 'remove') => {
+    (id: string, kind: 'scan' | 'act' | 'enrich') => {
       unsubscribe.current?.()
       setJob({ id, kind, lines: [], done: 0, total: null, results: [], status: 'running', summary: null })
 

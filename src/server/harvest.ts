@@ -142,9 +142,10 @@ export const HARVEST_TOTAL = `(() => {
 })()`
 
 /**
- * The list lives in an inner scroll pane, not the window. The pane is picked by
- * how many profiles it contains rather than by size — sizing alone picks up
- * unrelated wrappers, and then the scroll silently does nothing.
+ * Some lists live in an inner scroll pane rather than the window. The pane is
+ * picked by how many entries it contains rather than by size — sizing alone
+ * picks up unrelated wrappers, and then the scroll silently does nothing.
+ * Falls back to scrolling the window, which is what the classic pages use.
  */
 export const SCROLL_TO_END = `(() => {
   let pane = window.__incleanupPane
@@ -153,7 +154,7 @@ export const SCROLL_TO_END = `(() => {
     let bestProfiles = 0
     for (const el of document.querySelectorAll('div, main, section, ul')) {
       if (el.scrollHeight <= el.clientHeight + 200) continue
-      const profiles = el.querySelectorAll('a[href*="/in/"]').length
+      const profiles = el.querySelectorAll('a[href*="/in/"], a[href*="/company/"]').length
       if (profiles < 4) continue
       if (profiles > bestProfiles) {
         pane = el

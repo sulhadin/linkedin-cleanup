@@ -1,11 +1,13 @@
 # incleanup
 
-A local, keyboard-driven tool for pruning your LinkedIn connections.
+A local, keyboard-driven tool for pruning what has piled up on your LinkedIn
+account: connections you no longer recognise, and pages and people you no longer
+want in your feed.
 
-It attaches to a Chromium-family browser you are already logged into, reads your
-connection list, shows it in a fast list you drive with `↑`/`↓` and `space`, and
-then removes everything you marked — one person at a time, through the same
-controls you would click yourself.
+It attaches to a Chromium-family browser you are already logged into, reads the
+lists, shows them in a fast list you drive with `↑`/`↓` and `space`, and then
+acts on everything you marked — one entry at a time, through the same controls
+you would click yourself.
 
 Nothing leaves your machine. There is no server, no account, no API key, and
 incleanup never sees or asks for your LinkedIn password.
@@ -26,10 +28,10 @@ npm install
 **1. Start the browser with remote debugging.**
 
 ```bash
-npm run brave
+npm run chrome
 ```
 
-Use `npm run chrome` for Chrome, or `npm run browser` to autodetect.
+Use `npm run brave` for Brave, or `npm run browser` to autodetect.
 
 This opens a **separate browser profile** at `~/.incleanup/<family>-profile`.
 That is not a choice — since Chromium 136 the remote debugging port is refused
@@ -44,9 +46,40 @@ npm run dev
 
 Open http://localhost:5273.
 
-**3. Scan, select, remove.**
+**3. Scan, filter, select, act.**
 
-Press `r` to scan. Mark people with `space`, then press `↵` and confirm.
+Press `r` to scan the active tab. Mark entries with `space`, or take the whole
+filtered set with **Select all**. Press `↵` and confirm.
+
+## What it can clean
+
+| Tab                | Source                        | Action     |
+| ------------------ | ----------------------------- | ---------- |
+| Connections        | My Network → Connections      | Remove connection |
+| Followed pages     | Network manager → Pages       | Unfollow   |
+| People you follow  | Network manager → People      | Unfollow   |
+
+Each tab keeps its own snapshot, so scanning one never disturbs another.
+
+## Filters
+
+- **Search** — name, headline, or profile id.
+- **Shared** — how many connections you have in common: `0`, `1`, `2`, `3`, `4`,
+  `5+`, or `Unknown`. Connections only.
+- **Looks like a company** — flags profiles that read as a brand or agency
+  rather than a person. This is openly a guess; hover the `company?` tag to see
+  what triggered it, and check before acting.
+
+### Shared connections need a lookup pass
+
+The connections page never mentions shared connections, so the counts come from
+a separate pass over 1st-degree people search (the **look up** link in the
+status bar). It takes a few minutes.
+
+LinkedIn caps that search at roughly 1,000 results, so on a larger network the
+tail never appears. Those entries stay **Unknown** rather than being recorded as
+zero — filtering for `0` will not quietly sweep up people whose count was simply
+never available.
 
 ## Keyboard
 
@@ -56,12 +89,12 @@ Press `r` to scan. Mark people with `space`, then press `↵` and confirm.
 | `space`        | Toggle the row under the cursor           |
 | `shift`+`↑`/`↓`  | Extend the selection while moving       |
 | `PgUp` `PgDn` `Home` `End` | Jump                          |
-| `a`            | Select / deselect everything in view      |
+| `a`            | Select / deselect everything shown         |
 | `n`            | Clear the selection                       |
 | `/`            | Focus search (`esc` to leave)             |
 | `esc`          | Clear the search, then the selection      |
-| `r`            | Rescan connections                        |
-| `↵`            | Remove the selection (opens a confirm)    |
+| `r`            | Rescan the active tab                     |
+| `↵`            | Act on the selection (opens a confirm)    |
 | `d`            | Toggle dry run, in the confirm dialog     |
 
 ## Safety
@@ -69,22 +102,26 @@ Press `r` to scan. Mark people with `space`, then press `↵` and confirm.
 Removing a connection is **not reversible** on LinkedIn — re-adding someone
 means sending a fresh invite they have to accept.
 
-- The confirm dialog has a **dry run** mode: it finds each person and verifies
-  the "Remove connection" control is reachable, then closes the menu without
-  clicking it. It cannot remove anyone.
-- Every attempt is appended to `~/.incleanup/removals.log` (timestamp, outcome,
-  profile id, name), so you can always find someone you cut by mistake.
-- Removals are capped at 100 per run and paced 3.5–7s apart. LinkedIn does throttle
-  accounts that behave like scripts; do not raise these without thinking about it.
+- The confirm dialog has a **dry run** mode: it finds each entry and verifies
+  the control is reachable, then backs out without clicking it. It cannot remove
+  or unfollow anyone.
+- Every attempt is appended to `~/.incleanup/removals.log` (timestamp, list,
+  outcome, id, name), so you can always find someone you cut by mistake.
+- Actions are capped at 100 per run and paced 3.5–7s apart. LinkedIn does
+  throttle accounts that behave like scripts; do not raise these without
+  thinking about it.
 
 ## How it works
 
 | Piece            | Approach                                                                                                                                                 |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Browser access   | `playwright-core` attaches over CDP to a browser you launched. It only ever drives a tab it opened itself — your other tabs are never read or navigated.  |
-| Reading the list | The connections page is scrolled to the end and rows are read from the DOM as they appear, since LinkedIn virtualises the list. The page's own declared total is used as the target so a mid-list stall is not mistaken for the end. incleanup makes no API calls of its own. |
-| Removing         | Done from the connections list, never by opening profiles — so nobody gets a "viewed your profile" notice. Each person is filtered in by name, matched by profile id, then **More actions → Remove connection** (plus a confirmation, if LinkedIn asks for one). Labels are matched in English and Turkish. |
-| Storage          | `~/.incleanup/connections.json` (snapshot) and `~/.incleanup/removals.log`. Neither is ever committed.                                                    |
+| Reading a list   | The page is scrolled and paged to the end, and rows are read from the DOM as they appear, since LinkedIn virtualises long lists. The page's own declared total is used as the target, so a mid-list stall is not mistaken for the end. incleanup makes no API calls of its own. |
+| Removing         | Done from the connections list, never by opening profiles — so nobody gets a "viewed your profile" notice. Each person is filtered in by name, matched by profile id, then **More actions → Remove connection**, then the confirmation. |
+| Unfollowing      | From the network-manager lists, via each row's **Following** button. The button flipping back to "Follow" is what proves it landed. |
+| Storage          | `~/.incleanup/<list>.json` and `~/.incleanup/removals.log`. Neither is ever committed.                                                    |
+
+Labels are matched in English and Turkish throughout.
 
 ## Configuration
 
@@ -96,21 +133,23 @@ All optional, via environment variables:
 | `INCLEANUP_CDP_PORT`           | `9222`  | Browser remote debugging port       |
 | `INCLEANUP_DATA_DIR`           | `~/.incleanup` | Snapshot + log location      |
 | `INCLEANUP_MAX_REMOVALS`       | `100`   | Hard cap per run                    |
-| `INCLEANUP_REMOVAL_DELAY_MIN`  | `3500`  | Min pause between removals (ms)     |
-| `INCLEANUP_REMOVAL_DELAY_MAX`  | `7000`  | Max pause between removals (ms)     |
+| `INCLEANUP_REMOVAL_DELAY_MIN`  | `3500`  | Min pause between actions (ms)      |
+| `INCLEANUP_REMOVAL_DELAY_MAX`  | `7000`  | Max pause between actions (ms)      |
 | `INCLEANUP_MAX_CONNECTIONS`    | `5000`  | Scan ceiling                        |
+| `INCLEANUP_MAX_ENRICH_PAGES`   | `100`   | Search pages read for shared counts |
 | `INCLEANUP_BROWSER_BIN`        | —       | Explicit browser binary path        |
 
 ## Caveats
 
-LinkedIn rewrites its markup often. Rows are found by `componentkey`, with a
-structural fallback that infers cards from the profile links themselves. If a
-scan returns nothing, or removals start reporting "Card has no More actions
-button", the selectors live in `src/server/harvest.ts` and
-`src/server/remove.ts`.
+LinkedIn is mid-rewrite and serves more than one version of these pages. The
+connections list uses a new `componentkey` markup; the network-manager lists
+still use the classic one. incleanup targets both, with a structural fallback
+that infers rows from the profile links themselves, but a further rewrite will
+need the selectors in `src/server/harvest.ts`, `src/server/harvestManager.ts`
+and `src/server/actions.ts` revisited.
 
 A scan of ~1,200 connections takes several minutes; partial results are written
-to disk every 200 people, so an interrupted scan is not wasted.
+to disk every 200 entries, so an interrupted scan is not wasted.
 
 Automating your own account is your call and your risk — LinkedIn's User
 Agreement discourages automated access regardless of intent.

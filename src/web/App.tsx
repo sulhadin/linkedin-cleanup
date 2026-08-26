@@ -1,28 +1,55 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  getConnections,
+  getDataset,
   getStatus,
-  startRemoval,
-  startScrape,
+  startAction,
+  startEnrich,
+  startScan,
   stopJob,
-  type Connection,
+  type DatasetInfo,
+  type DatasetKind,
+  type Entity,
   type Status,
 } from './api.ts'
+import { looksCorporate } from './heuristics.ts'
 import { useJob } from './useJob.ts'
 
 const ROW_HEIGHT = 68
 const OVERSCAN = 6
 
-type Mode = 'list' | 'confirm'
+const MUTUAL_OPTIONS = [
+  { value: 'any', label: 'Any' },
+  { value: '0', label: '0' },
+  { value: '1', label: '1' },
+  { value: '2', label: '2' },
+  { value: '3', label: '3' },
+  { value: '4', label: '4' },
+  { value: '5+', label: '5+' },
+  { value: 'unknown', label: 'Unknown' },
+] as const
+
+type MutualFilter = (typeof MUTUAL_OPTIONS)[number]['value']
+
+const matchesMutual = (entity: Entity, filter: MutualFilter): boolean => {
+  if (filter === 'any') return true
+  // Not looked up and "LinkedIn would not say" are both unknown, never zero.
+  if (entity.mutual === undefined || entity.mutual === null) return filter === 'unknown'
+  if (filter === 'unknown') return false
+  if (filter === '5+') return entity.mutual >= 5
+  return entity.mutual === Number(filter)
+}
 
 export function App() {
   const [status, setStatus] = useState<Status | null>(null)
-  const [connections, setConnections] = useState<Connection[]>([])
+  const [kind, setKind] = useState<DatasetKind>('connections')
+  const [entities, setEntities] = useState<Entity[]>([])
   const [scrapedAt, setScrapedAt] = useState<number | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [query, setQuery] = useState('')
+  const [mutualFilter, setMutualFilter] = useState<MutualFilter>('any')
+  const [corporateOnly, setCorporateOnly] = useState(false)
   const [cursor, setCursor] = useState(0)
-  const [mode, setMode] = useState<Mode>('list')
+  const [confirming, setConfirming] = useState(false)
   const [dryRun, setDryRun] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -31,29 +58,40 @@ export function App() {
   const [scrollTop, setScrollTop] = useState(0)
   const [viewportHeight, setViewportHeight] = useState(600)
 
-  const refreshConnections = useCallback(async () => {
-    const snapshot = await getConnections()
-    setConnections(snapshot.connections)
-    setScrapedAt(snapshot.scrapedAt)
-  }, [])
+  const dataset: DatasetInfo | undefined = status?.datasets.find((d) => d.kind === kind)
+  const verb = dataset?.verb ?? 'remove'
+  const isConnections = kind === 'connections'
 
-  const { job, attach, dismiss } = useJob(refreshConnections)
+  const refresh = useCallback(async () => {
+    const snapshot = await getDataset(kind)
+    setEntities(snapshot.entities)
+    setScrapedAt(snapshot.scrapedAt)
+  }, [kind])
+
+  const { job, attach, dismiss } = useJob(refresh)
 
   useEffect(() => {
     void getStatus().then(setStatus).catch(() => setStatus(null))
-    void refreshConnections().catch((e: unknown) => setError(String(e)))
-  }, [refreshConnections])
+  }, [])
+
+  useEffect(() => {
+    setSelected(new Set())
+    setCursor(0)
+    void refresh().catch((e: unknown) => setError(String(e)))
+  }, [refresh])
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
-    if (needle.length === 0) return connections
-    return connections.filter(
-      (c) =>
-        c.name.toLowerCase().includes(needle) ||
-        c.headline.toLowerCase().includes(needle) ||
-        c.id.toLowerCase().includes(needle),
-    )
-  }, [connections, query])
+    return entities.filter((entity) => {
+      if (needle.length > 0) {
+        const haystack = `${entity.name} ${entity.headline} ${entity.id}`.toLowerCase()
+        if (!haystack.includes(needle)) return false
+      }
+      if (isConnections && !matchesMutual(entity, mutualFilter)) return false
+      if (corporateOnly && !looksCorporate(entity).flagged) return false
+      return true
+    })
+  }, [entities, query, mutualFilter, corporateOnly, isConnections])
 
   useEffect(() => {
     setCursor((current) => Math.min(current, Math.max(0, filtered.length - 1)))
@@ -90,40 +128,51 @@ export function App() {
     })
   }, [])
 
-  const runScrape = useCallback(async () => {
-    setError(null)
-    try {
-      const { jobId } = await startScrape()
-      attach(jobId, 'scrape')
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e))
-    }
-  }, [attach])
+  const selectAllFiltered = useCallback(() => {
+    setSelected((current) => {
+      const next = new Set(current)
+      const allSelected = filtered.length > 0 && filtered.every((e) => next.has(e.id))
+      for (const entity of filtered) {
+        if (allSelected) next.delete(entity.id)
+        else next.add(entity.id)
+      }
+      return next
+    })
+  }, [filtered])
 
-  const runRemoval = useCallback(async () => {
-    setError(null)
-    const ids = [...selected]
-    try {
-      const { jobId } = await startRemoval(ids, dryRun)
-      attach(jobId, 'remove')
-      setMode('list')
-      if (!dryRun) setSelected(new Set())
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e))
-    }
-  }, [attach, dryRun, selected])
+  const run = useCallback(
+    async (start: () => Promise<{ jobId: string }>, jobKind: 'scan' | 'act' | 'enrich') => {
+      setError(null)
+      try {
+        const { jobId } = await start()
+        attach(jobId, jobKind)
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : String(e))
+      }
+    },
+    [attach],
+  )
+
+  const runScan = useCallback(() => run(() => startScan(kind), 'scan'), [kind, run])
+  const runEnrich = useCallback(() => run(() => startEnrich(), 'enrich'), [run])
+
+  const runAction = useCallback(async () => {
+    await run(() => startAction(kind, [...selected], dryRun), 'act')
+    setConfirming(false)
+    if (!dryRun) setSelected(new Set())
+  }, [dryRun, kind, run, selected])
+
+  const busy = job?.status === 'running'
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const searchFocused = document.activeElement === searchRef.current
-
-      if (mode === 'confirm') {
+      if (confirming) {
         if (event.key === 'Escape') {
           event.preventDefault()
-          setMode('list')
+          setConfirming(false)
         } else if (event.key === 'Enter') {
           event.preventDefault()
-          void runRemoval()
+          void runAction()
         } else if (event.key.toLowerCase() === 'd') {
           event.preventDefault()
           setDryRun((value) => !value)
@@ -131,10 +180,9 @@ export function App() {
         return
       }
 
-      if (searchFocused) {
+      if (document.activeElement !== document.body) {
         if (event.key === 'Escape' || event.key === 'Enter') {
-          event.preventDefault()
-          searchRef.current?.blur()
+          ;(document.activeElement as HTMLElement | null)?.blur()
         }
         return
       }
@@ -177,7 +225,7 @@ export function App() {
         }
         case 'Enter': {
           event.preventDefault()
-          if (selected.size > 0 && job?.status !== 'running') setMode('confirm')
+          if (selected.size > 0 && !busy) setConfirming(true)
           return
         }
         case '/': {
@@ -193,15 +241,7 @@ export function App() {
         }
         case 'a': {
           event.preventDefault()
-          setSelected((current) => {
-            const next = new Set(current)
-            const allSelected = filtered.every((c) => next.has(c.id))
-            for (const c of filtered) {
-              if (allSelected) next.delete(c.id)
-              else next.add(c.id)
-            }
-            return next
-          })
+          selectAllFiltered()
           return
         }
         case 'n': {
@@ -211,7 +251,7 @@ export function App() {
         }
         case 'r': {
           event.preventDefault()
-          if (job?.status !== 'running') void runScrape()
+          if (!busy) void runScan()
           return
         }
       }
@@ -219,13 +259,29 @@ export function App() {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [cursor, filtered, job?.status, mode, query, runRemoval, runScrape, selected.size, toggle, viewportHeight])
+  }, [
+    busy,
+    confirming,
+    cursor,
+    filtered,
+    query,
+    runAction,
+    runScan,
+    selectAllFiltered,
+    selected.size,
+    toggle,
+    viewportHeight,
+  ])
 
   const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN)
-  const end = Math.min(filtered.length, Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + OVERSCAN)
+  const end = Math.min(
+    filtered.length,
+    Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + OVERSCAN,
+  )
   const visible = filtered.slice(start, end)
 
-  const busy = job?.status === 'running'
+  const enriched = entities.filter((e) => typeof e.mutual === 'number').length
+  const allFilteredSelected = filtered.length > 0 && filtered.every((e) => selected.has(e.id))
 
   return (
     <div className="app">
@@ -234,27 +290,28 @@ export function App() {
           <h1>incleanup</h1>
           <StatusPill status={status} />
         </div>
-        <div className="counts">
-          <span>
-            <strong>{filtered.length}</strong> shown
-          </span>
-          <span>
-            <strong>{connections.length}</strong> total
-          </span>
-          <span className={selected.size > 0 ? 'selected-count active' : 'selected-count'}>
-            <strong>{selected.size}</strong> selected
-          </span>
-        </div>
+        <nav className="tabs">
+          {(status?.datasets ?? []).map((info) => (
+            <button
+              key={info.kind}
+              className={info.kind === kind ? 'tab active' : 'tab'}
+              onClick={() => setKind(info.kind)}
+              disabled={busy}
+            >
+              {info.label}
+            </button>
+          ))}
+        </nav>
         <div className="actions">
-          <button onClick={() => void runScrape()} disabled={busy}>
-            {connections.length === 0 ? 'Scan connections' : 'Rescan'} <kbd>r</kbd>
+          <button onClick={() => void runScan()} disabled={busy}>
+            {entities.length === 0 ? 'Scan' : 'Rescan'} <kbd>r</kbd>
           </button>
           <button
             className="danger"
-            onClick={() => setMode('confirm')}
+            onClick={() => setConfirming(true)}
             disabled={busy || selected.size === 0}
           >
-            Remove {selected.size || ''} <kbd>↵</kbd>
+            {verb === 'remove' ? 'Remove' : 'Unfollow'} {selected.size || ''} <kbd>↵</kbd>
           </button>
         </div>
       </header>
@@ -263,16 +320,60 @@ export function App() {
       {status?.chrome && !status.loggedIn && <Banner tone="warn">{status.hint}</Banner>}
       {error && <Banner tone="error">{error}</Banner>}
 
-      <div className="searchbar">
+      <div className="filters">
         <input
           ref={searchRef}
           value={query}
-          placeholder="Search by name, headline or profile id…   (press / to focus)"
+          placeholder="Search name, headline or id…   (press / to focus)"
           onChange={(event) => setQuery(event.target.value)}
         />
-        {scrapedAt && (
-          <span className="scraped-at">Last scan {new Date(scrapedAt).toLocaleString()}</span>
+
+        {isConnections && (
+          <label className="filter">
+            Shared
+            <select
+              value={mutualFilter}
+              onChange={(event) => setMutualFilter(event.target.value as MutualFilter)}
+            >
+              {MUTUAL_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
         )}
+
+        <label className="filter checkbox">
+          <input
+            type="checkbox"
+            checked={corporateOnly}
+            onChange={(event) => setCorporateOnly(event.target.checked)}
+          />
+          Looks like a company
+        </label>
+
+        <button onClick={selectAllFiltered} disabled={filtered.length === 0}>
+          {allFilteredSelected ? 'Deselect' : 'Select'} all {filtered.length} <kbd>a</kbd>
+        </button>
+      </div>
+
+      <div className="statusline">
+        <span>
+          <strong>{filtered.length}</strong> shown of {entities.length}
+        </span>
+        <span className={selected.size > 0 ? 'active' : undefined}>
+          <strong>{selected.size}</strong> selected
+        </span>
+        {isConnections && (
+          <span>
+            shared counts: <strong>{enriched}</strong>/{entities.length}
+            <button className="link" onClick={() => void runEnrich()} disabled={busy}>
+              look up
+            </button>
+          </span>
+        )}
+        {scrapedAt && <span className="dim">scanned {new Date(scrapedAt).toLocaleString()}</span>}
       </div>
 
       <div
@@ -282,21 +383,22 @@ export function App() {
         onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
       >
         {filtered.length === 0 ? (
-          <Empty hasConnections={connections.length > 0} />
+          <Empty hasEntities={entities.length > 0} label={dataset?.label ?? 'entries'} />
         ) : (
           <div style={{ height: filtered.length * ROW_HEIGHT, position: 'relative' }}>
-            {visible.map((connection, index) => {
+            {visible.map((entity, index) => {
               const absolute = start + index
               return (
                 <Row
-                  key={connection.id}
-                  connection={connection}
+                  key={entity.id}
+                  entity={entity}
                   top={absolute * ROW_HEIGHT}
                   isCursor={absolute === cursor}
-                  isSelected={selected.has(connection.id)}
+                  isSelected={selected.has(entity.id)}
+                  showMutual={isConnections}
                   onClick={() => {
                     setCursor(absolute)
-                    toggle(connection.id)
+                    toggle(entity.id)
                   }}
                 />
               )
@@ -309,50 +411,48 @@ export function App() {
         <Hint keys="↑ ↓" label="move" />
         <Hint keys="space" label="select" />
         <Hint keys="shift+↑↓" label="range" />
-        <Hint keys="a" label="all" />
+        <Hint keys="a" label="all shown" />
         <Hint keys="n" label="none" />
         <Hint keys="/" label="search" />
         <Hint keys="r" label="rescan" />
-        <Hint keys="↵" label="remove selected" />
+        <Hint keys="↵" label={verb === 'remove' ? 'remove selected' : 'unfollow selected'} />
       </footer>
 
-      {mode === 'confirm' && (
+      {confirming && (
         <ConfirmDialog
+          verb={verb}
           count={selected.size}
           names={[...selected]
-            .map((id) => connections.find((c) => c.id === id)?.name ?? id)
+            .map((id) => entities.find((e) => e.id === id)?.name ?? id)
             .slice(0, 8)}
           dryRun={dryRun}
           onToggleDryRun={() => setDryRun((value) => !value)}
-          onCancel={() => setMode('list')}
-          onConfirm={() => void runRemoval()}
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => void runAction()}
         />
       )}
 
-      {job && (
-        <JobPanel
-          job={job}
-          onStop={() => void stopJob(job.id)}
-          onDismiss={dismiss}
-        />
-      )}
+      {job && <JobPanel job={job} onStop={() => void stopJob(job.id)} onDismiss={dismiss} />}
     </div>
   )
 }
 
 function Row({
-  connection,
+  entity,
   top,
   isCursor,
   isSelected,
+  showMutual,
   onClick,
 }: {
-  connection: Connection
+  entity: Entity
   top: number
   isCursor: boolean
   isSelected: boolean
+  showMutual: boolean
   onClick: () => void
 }) {
+  const corporate = looksCorporate(entity)
   const className = ['row', isCursor && 'cursor', isSelected && 'selected']
     .filter(Boolean)
     .join(' ')
@@ -362,34 +462,47 @@ function Row({
       <span className="checkbox" aria-hidden>
         {isSelected ? '◉' : '○'}
       </span>
-      {connection.avatarUrl ? (
-        <img className="avatar" src={connection.avatarUrl} alt="" loading="lazy" />
+      {entity.avatarUrl ? (
+        <img className="avatar" src={entity.avatarUrl} alt="" loading="lazy" />
       ) : (
         <span className="avatar placeholder" aria-hidden>
-          {connection.name.charAt(0)}
+          {entity.name.charAt(0)}
         </span>
       )}
       <span className="who">
-        <span className="name">{connection.name}</span>
-        <span className="headline">{connection.headline}</span>
+        <span className="name">
+          {entity.name}
+          {corporate.flagged && (
+            <span className="tag" title={corporate.reasons.join('; ')}>
+              company?
+            </span>
+          )}
+        </span>
+        <span className="headline">{entity.headline}</span>
       </span>
-      {connection.connectedAt && (
-        <span className="since">{new Date(connection.connectedAt).toLocaleDateString()}</span>
+      {showMutual && (
+        <span className="mutual" title="Shared connections">
+          {typeof entity.mutual === 'number' ? entity.mutual : '–'}
+        </span>
+      )}
+      {entity.connectedAt && (
+        <span className="since">{new Date(entity.connectedAt).toLocaleDateString()}</span>
       )}
       <a
         className="open"
-        href={connection.profileUrl}
+        href={entity.url}
         target="_blank"
         rel="noreferrer"
         onClick={(event) => event.stopPropagation()}
       >
-        profile ↗
+        open ↗
       </a>
     </div>
   )
 }
 
 function ConfirmDialog({
+  verb,
   count,
   names,
   dryRun,
@@ -397,6 +510,7 @@ function ConfirmDialog({
   onCancel,
   onConfirm,
 }: {
+  verb: 'remove' | 'unfollow'
   count: number
   names: string[]
   dryRun: boolean
@@ -408,7 +522,7 @@ function ConfirmDialog({
     <div className="overlay">
       <div className="dialog">
         <h2>
-          Remove {count} connection{count === 1 ? '' : 's'}?
+          {verb === 'remove' ? 'Remove' : 'Unfollow'} {count} {count === 1 ? 'entry' : 'entries'}?
         </h2>
         <ul className="preview">
           {names.map((name) => (
@@ -417,19 +531,22 @@ function ConfirmDialog({
           {count > names.length && <li className="more">…and {count - names.length} more</li>}
         </ul>
         <p className="warning">
-          LinkedIn does not undo this. Every attempt is appended to{' '}
-          <code>~/.incleanup/removals.log</code> so you can find people again.
+          {verb === 'remove'
+            ? 'LinkedIn does not undo this — re-adding means a fresh invite they must accept.'
+            : 'You can follow a page again later, but the list of who you followed is not kept.'}{' '}
+          Every attempt is appended to <code>~/.incleanup/removals.log</code>.
         </p>
         <label className="dry-run">
           <input type="checkbox" checked={dryRun} onChange={onToggleDryRun} />
-          Dry run — walk each profile and open the dialog, but never confirm <kbd>d</kbd>
+          Dry run — find each one and check the control, but never click it <kbd>d</kbd>
         </label>
         <div className="dialog-actions">
           <button onClick={onCancel}>
             Cancel <kbd>esc</kbd>
           </button>
           <button className="danger" onClick={onConfirm}>
-            {dryRun ? 'Start dry run' : `Remove ${count}`} <kbd>↵</kbd>
+            {dryRun ? 'Start dry run' : `${verb === 'remove' ? 'Remove' : 'Unfollow'} ${count}`}{' '}
+            <kbd>↵</kbd>
           </button>
         </div>
       </div>
@@ -447,12 +564,16 @@ function JobPanel({
   onDismiss: () => void
 }) {
   const percent = job.total ? Math.round((job.done / job.total) * 100) : null
+  const title =
+    job.kind === 'scan' ? 'Scanning' : job.kind === 'enrich' ? 'Looking up shared connections' : 'Working'
 
   return (
     <div className="job-panel">
       <div className="job-head">
-        <strong>{job.kind === 'scrape' ? 'Scanning connections' : 'Removing connections'}</strong>
-        <span className={`job-status ${job.status}`}>{job.summary ?? `${job.done}${job.total ? `/${job.total}` : ''}`}</span>
+        <strong>{title}</strong>
+        <span className={`job-status ${job.status}`}>
+          {job.summary ?? `${job.done}${job.total ? `/${job.total}` : ''}`}
+        </span>
         {job.status === 'running' ? (
           <button onClick={onStop}>Stop</button>
         ) : (
@@ -486,7 +607,7 @@ function JobPanel({
 
 function StatusPill({ status }: { status: Status | null }) {
   if (!status) return <span className="pill unknown">api offline</span>
-  if (!status.chrome) return <span className="pill bad">chrome not attached</span>
+  if (!status.chrome) return <span className="pill bad">browser not attached</span>
   if (!status.loggedIn) return <span className="pill warn">not logged in</span>
   return <span className="pill good">connected</span>
 }
@@ -495,17 +616,17 @@ function Banner({ tone, children }: { tone: 'warn' | 'error'; children: React.Re
   return <div className={`banner ${tone}`}>{children}</div>
 }
 
-function Empty({ hasConnections }: { hasConnections: boolean }) {
+function Empty({ hasEntities, label }: { hasEntities: boolean; label: string }) {
   return (
     <div className="empty">
-      {hasConnections ? (
-        <p>Nothing matches that search.</p>
+      {hasEntities ? (
+        <p>Nothing matches these filters.</p>
       ) : (
         <>
-          <p>No connections scanned yet.</p>
+          <p>No {label.toLowerCase()} scanned yet.</p>
           <p className="dim">
-            Start the browser with <code>npm run brave</code> (or <code>npm run chrome</code>), log
-            in to LinkedIn, then press <kbd>r</kbd>.
+            Start the browser with <code>npm run chrome</code>, log in to LinkedIn, then press{' '}
+            <kbd>r</kbd>.
           </p>
         </>
       )}

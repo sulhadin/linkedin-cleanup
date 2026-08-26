@@ -20,12 +20,13 @@ export const config = {
   /** Pause after each scroll, for LinkedIn to append the next page of cards. */
   scrollWaitMs: int(process.env.INCLEANUP_SCROLL_WAIT, 1200),
 
-  /** Refuse to remove more than this in a single run. */
+  /** Refuse to act on more than this in a single run. */
   maxRemovalsPerRun: int(process.env.INCLEANUP_MAX_REMOVALS, 100),
+  /** Search result pages to walk when looking up mutual connections. */
+  maxEnrichPages: int(process.env.INCLEANUP_MAX_ENRICH_PAGES, 100),
   /** Randomised pause between removals, to stay in human territory. */
   removalDelayMinMs: int(process.env.INCLEANUP_REMOVAL_DELAY_MIN, 3500),
   removalDelayMaxMs: int(process.env.INCLEANUP_REMOVAL_DELAY_MAX, 7000),
 } as const
 
-export const snapshotPath = path.join(config.dataDir, 'connections.json')
-export const removalLogPath = path.join(config.dataDir, 'removals.log')
+export const actionLogPath = path.join(config.dataDir, 'removals.log')
