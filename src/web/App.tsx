@@ -504,8 +504,8 @@ function Empty({ hasConnections }: { hasConnections: boolean }) {
         <>
           <p>No connections scanned yet.</p>
           <p className="dim">
-            Start Chrome with <code>npm run chrome</code>, log in to LinkedIn, then press{' '}
-            <kbd>r</kbd>.
+            Start the browser with <code>npm run brave</code> (or <code>npm run chrome</code>), log
+            in to LinkedIn, then press <kbd>r</kbd>.
           </p>
         </>
       )}

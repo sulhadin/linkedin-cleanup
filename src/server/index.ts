@@ -33,7 +33,7 @@ app.get('/api/status', async (_req, res) => {
   res.json({
     chrome: true,
     loggedIn,
-    hint: loggedIn ? null : 'Log in to LinkedIn in the incleanup Chrome window, then reload.',
+    hint: loggedIn ? null : 'Log in to LinkedIn in the incleanup browser window, then reload.',
     activeJob: job ? { id: job.state.id, kind: job.state.kind } : null,
   })
 })

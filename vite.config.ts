@@ -11,7 +11,8 @@ export default defineConfig({
   server: {
     port: 5273,
     proxy: {
-      '/api': {
+      // Anchored so it cannot swallow the `api.ts` module request.
+      '^/api/': {
         target: 'http://127.0.0.1:5274',
         changeOrigin: false,
       },
