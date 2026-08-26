@@ -28,8 +28,9 @@ app.get('/api/status', async (_req, res) => {
       hint: new ChromeUnreachableError(config.cdpPort).message,
     })
   }
-  const loggedIn = await checkLoggedIn().catch(() => false)
+  // A running job owns the tab; probing it here would queue behind navigation.
   const job = currentJob()
+  const loggedIn = job ? true : await checkLoggedIn().catch(() => false)
   res.json({
     chrome: true,
     loggedIn,
@@ -47,8 +48,13 @@ app.post('/api/scrape', (_req, res) => {
   try {
     const job = startJob('scrape', async (j) => {
       j.emit({ type: 'log', message: 'Opening your LinkedIn connections page…' })
-      const connections = await scrapeConnections((count) =>
-        j.emit({ type: 'progress', done: count, total: null, message: `${count} connections found` }),
+      const connections = await scrapeConnections((count, total) =>
+        j.emit({
+          type: 'progress',
+          done: count,
+          total,
+          message: total ? `${count} of ${total} connections` : `${count} connections found`,
+        }),
       )
       await writeSnapshot(connections)
       return `Found ${connections.length} connections.`
