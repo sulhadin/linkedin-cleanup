@@ -20,8 +20,10 @@ export const config = {
   /** Pause after each scroll, for LinkedIn to append the next page of cards. */
   scrollWaitMs: int(process.env.INCLEANUP_SCROLL_WAIT, 1200),
 
-  /** Refuse to act on more than this in a single run. */
+  /** Connection removals per run. Deliberately low: LinkedIn cannot undo them. */
   maxRemovalsPerRun: int(process.env.INCLEANUP_MAX_REMOVALS, 100),
+  /** Unfollows per run. Higher, because following again is one click. */
+  maxUnfollowsPerRun: int(process.env.INCLEANUP_MAX_UNFOLLOWS, 500),
   /** Search result pages to walk when looking up mutual connections. */
   maxEnrichPages: int(process.env.INCLEANUP_MAX_ENRICH_PAGES, 100),
   /** Randomised pause between removals, to stay in human territory. */

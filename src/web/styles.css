@@ -62,7 +62,7 @@ code {
   display: flex;
   flex-direction: column;
   height: 100%;
-  max-width: 1000px;
+  max-width: 1180px;
   margin: 0 auto;
   padding: 16px;
   gap: 12px;
@@ -202,6 +202,7 @@ button.danger {
 }
 
 .filters button {
+  flex: 0 0 auto;
   white-space: nowrap;
 }
 
@@ -225,6 +226,9 @@ button.danger {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  flex: 0 0 auto;
+  /* Without an explicit content width the label collapses to just its box. */
+  min-width: max-content;
   font-size: 12.5px;
   color: var(--dim);
   white-space: nowrap;

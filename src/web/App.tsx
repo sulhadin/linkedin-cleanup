@@ -180,12 +180,25 @@ export function App() {
         return
       }
 
-      if (document.activeElement !== document.body) {
+      // Only typing should swallow the shortcuts. Clicking a button leaves it
+      // focused, and bailing on that would kill every key until the next click.
+      const active = document.activeElement as HTMLElement | null
+      const typing =
+        active?.isContentEditable === true ||
+        active?.tagName === 'TEXTAREA' ||
+        active?.tagName === 'SELECT' ||
+        (active?.tagName === 'INPUT' && (active as HTMLInputElement).type !== 'checkbox')
+
+      if (typing) {
         if (event.key === 'Escape' || event.key === 'Enter') {
-          ;(document.activeElement as HTMLElement | null)?.blur()
+          event.preventDefault()
+          active?.blur()
         }
         return
       }
+
+      // A focused button would otherwise take the space bar as a click.
+      if (active?.tagName === 'BUTTON') active.blur()
 
       const move = (delta: number) => {
         event.preventDefault()
@@ -350,7 +363,7 @@ export function App() {
             checked={corporateOnly}
             onChange={(event) => setCorporateOnly(event.target.checked)}
           />
-          Looks like a company
+          <span>Looks like a company</span>
         </label>
 
         <button onClick={selectAllFiltered} disabled={filtered.length === 0}>

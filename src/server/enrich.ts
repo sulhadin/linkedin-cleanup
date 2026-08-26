@@ -4,27 +4,27 @@ import type { Entity } from './types.ts'
 
 /**
  * The connections page never mentions shared connections, but 1st-degree people
- * search prints them under every result. Cards are read via
- * `data-chameleon-result-urn`: the mutual-connection *names* in a card are
- * profile links too, so inferring cards from links alone invents entries.
+ * search prints them under every result. Each result is one anchor wrapping the
+ * whole row, so its own text already carries the mutual line. The
+ * mutual-connection *names* are anchors too, so a row only counts when it shows
+ * a degree marker or a mutual line — otherwise those names become fake results.
  */
 const HARVEST_SEARCH_RESULTS = `(() => {
-  const rows = document.querySelectorAll('[data-chameleon-result-urn]')
-  const found = []
+  const best = new Map()
 
-  for (const row of rows) {
-    const link = row.querySelector('a[href*="/in/"]')
-    if (!link) continue
-    const match = (link.getAttribute('href') || '').match(/\\/in\\/([^/?#]+)/)
+  for (const anchor of document.querySelectorAll('a[href*="/in/"]')) {
+    const match = (anchor.getAttribute('href') || '').match(/\\/in\\/([^/?#]+)/)
     if (!match) continue
 
-    found.push({
-      id: decodeURIComponent(match[1]),
-      text: (row.innerText || '').replace(/\\n+/g, ' | '),
-    })
+    const text = (anchor.innerText || '').replace(/\\n+/g, ' | ')
+    if (!/•\\s*1st\\b|•\\s*1\\.|mutual connection|ortak ba\\u011flant/i.test(text)) continue
+
+    const id = decodeURIComponent(match[1])
+    const previous = best.get(id)
+    if (!previous || text.length > previous.length) best.set(id, text)
   }
 
-  return found
+  return [...best.entries()].map((entry) => ({ id: entry[0], text: entry[1] }))
 })()`
 
 /**

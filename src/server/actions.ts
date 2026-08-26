@@ -175,8 +175,14 @@ async function unfollow(
   const problem = await confirmDialog(page)
   if (problem) return { ...base, outcome: 'failed', error: problem }
 
-  await page.waitForTimeout(1500)
-  if (await button.isVisible().catch(() => false)) {
+  // The label flips to "follow" only once the request lands, which can take a
+  // few seconds; sampling once after a fixed pause calls a success a failure.
+  const flipped = await button
+    .waitFor({ state: 'hidden', timeout: 10000 })
+    .then(() => true)
+    .catch(() => false)
+
+  if (!flipped) {
     return { ...base, outcome: 'failed', error: 'Still shows as followed afterwards' }
   }
 
@@ -193,10 +199,13 @@ export async function runActions(
   options: { dryRun: boolean; shouldStop: () => boolean },
   onProgress: ActionProgress,
 ): Promise<ActionResult[]> {
-  if (targets.length > config.maxRemovalsPerRun) {
+  // Removing a connection cannot be undone; unfollowing can, so it is not held
+  // to the same cap.
+  const limit = kind === 'connections' ? config.maxRemovalsPerRun : config.maxUnfollowsPerRun
+  if (targets.length > limit) {
     throw new Error(
-      `Refusing to act on ${targets.length} entries in one run (limit ${config.maxRemovalsPerRun}). ` +
-        `Split it up, or raise INCLEANUP_MAX_REMOVALS.`,
+      `Refusing to ${DATASETS[kind].verb} ${targets.length} entries in one run (limit ${limit}). ` +
+        `Split it up, or raise INCLEANUP_MAX_REMOVALS / INCLEANUP_MAX_UNFOLLOWS.`,
     )
   }
 
