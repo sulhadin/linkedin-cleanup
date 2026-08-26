@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+
+# Never commit scraped connection data or browser profiles
+data/
+chrome-profile/
+*.connections.json
+.DS_Store
