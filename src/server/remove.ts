@@ -8,7 +8,9 @@ import type { Connection, RemovalResult } from './types.ts'
 // against its English and Turkish labels.
 const MORE_ACTIONS = /^(more actions|.* için diğer işlemler)/i
 const REMOVE_ITEM = /^(remove connection|bağlantıyı kaldır|bağlantıdan çıkar)/i
-const CONFIRM_BUTTON = /^(remove|kaldır|çıkar)$/i
+// The confirmation button reads "Remove connection", not "Remove"; matching the
+// short label alone leaves the dialog hanging open. "Cancel" must not match.
+const CONFIRM_BUTTON = /^(remove connection|remove|bağlantıyı kaldır|kaldır)$/i
 
 const jitter = () => {
   const { removalDelayMinMs: min, removalDelayMaxMs: max } = config
@@ -51,6 +53,24 @@ async function findCard(page: Page, connection: Connection): Promise<Locator | n
     .first()
 
   return (await visible(card, 5000)) ? card : null
+}
+
+/** Re-runs the name filter so the answer comes from LinkedIn, not a stale row. */
+async function stillListed(page: Page, connection: Connection): Promise<boolean> {
+  const box = searchBox(page)
+  if (await visible(box, 3000)) {
+    await box.fill('')
+    await page.waitForTimeout(600)
+    await box.fill(connection.name)
+    await page.waitForTimeout(2000)
+  }
+
+  return (
+    (await page
+      .locator('[componentkey^="ConnectionCard_"]')
+      .filter({ has: page.locator(`a[href*="/in/${encodeURIComponent(connection.id)}"]`) })
+      .count()) > 0
+  )
 }
 
 async function clearSearch(page: Page): Promise<void> {
@@ -96,16 +116,30 @@ async function removeOne(
 
   await removeItem.click()
 
-  const confirm = page.getByRole('dialog').getByRole('button', { name: CONFIRM_BUTTON }).first()
-  if (await visible(confirm, 4000)) await confirm.click()
+  // LinkedIn uses a native <dialog>, which carries the dialog role implicitly
+  // and so is invisible to an attribute selector like [role="dialog"].
+  const dialog = page.locator('dialog[open], [role="dialog"], [role="alertdialog"]').first()
+  if (await visible(dialog, 5000)) {
+    const confirm = dialog.getByRole('button', { name: CONFIRM_BUTTON }).first()
+    if (!(await visible(confirm, 3000))) {
+      // Leaving a half-open dialog behind would block every later removal.
+      await page.keyboard.press('Escape').catch(() => {})
+      const labels = await dialog
+        .getByRole('button')
+        .allInnerTexts()
+        .catch(() => [])
+      return {
+        ...base,
+        outcome: 'failed',
+        error: `Confirmation dialog has no recognised button (saw: ${labels.join(', ') || 'none'})`,
+      }
+    }
+    await confirm.click()
+  }
 
-  await page.waitForTimeout(1500)
-
-  const stillListed = await card
-    .isVisible()
-    .catch(() => false)
-  if (stillListed) {
-    return { ...base, outcome: 'failed', error: 'Card is still listed after the removal' }
+  await page.waitForTimeout(2000)
+  if (await stillListed(page, connection)) {
+    return { ...base, outcome: 'failed', error: 'Still listed as a connection afterwards' }
   }
 
   return { ...base, outcome: 'removed' }

@@ -4,8 +4,8 @@ A local, keyboard-driven tool for pruning your LinkedIn connections.
 
 It attaches to a Chromium-family browser you are already logged into, reads your
 connection list, shows it in a fast list you drive with `↑`/`↓` and `space`, and
-then removes everything you marked — one profile at a time, through the same UI
-a person would click.
+then removes everything you marked — one person at a time, through the same
+controls you would click yourself.
 
 Nothing leaves your machine. There is no server, no account, no API key, and
 incleanup never sees or asks for your LinkedIn password.
