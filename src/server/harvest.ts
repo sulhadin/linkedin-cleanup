@@ -74,15 +74,22 @@ export const HARVEST_NEW_CONNECTIONS = `(() => {
   if (!window.__incleanupSeen) window.__incleanupSeen = new Set()
   const seen = window.__incleanupSeen
 
-  let container = window.__incleanupContainer
-  if (!container || !container.isConnected) {
-    container = findContainer()
-    window.__incleanupContainer = container
+  // LinkedIn tags each row with componentkey="ConnectionCard_<n>-<id>". When
+  // that holds it is exact and cheap; the ancestor walk is the fallback for
+  // when the attribute is renamed.
+  let rows = [...document.querySelectorAll('[componentkey^="ConnectionCard_"]')]
+  if (rows.length === 0) {
+    let container = window.__incleanupContainer
+    if (!container || !container.isConnected) {
+      container = findContainer()
+      window.__incleanupContainer = container
+    }
+    if (!container) return []
+    rows = [...container.children]
   }
-  if (!container) return []
 
   const found = []
-  for (const card of container.children) {
+  for (const card of rows) {
     const anchor = card.querySelector('a[href*="/in/"]')
     if (!anchor) continue
 
@@ -115,8 +122,8 @@ export const HARVEST_NEW_CONNECTIONS = `(() => {
     found.push({ id: id, name: name, headline: headline, connectedText: connectedText, avatarUrl: avatarUrl })
   }
 
-  // Nothing new can mean the list moved to a different container, so make the
-  // next round re-resolve it rather than sitting on a stale one.
+  // Nothing new can mean the fallback locked onto a stale container, so make
+  // the next round re-resolve it.
   if (found.length === 0) window.__incleanupContainer = null
 
   return found

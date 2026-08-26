@@ -14,7 +14,7 @@ export type Snapshot = {
   connections: Connection[]
 }
 
-export type RemovalOutcome = 'removed' | 'already-gone' | 'failed'
+export type RemovalOutcome = 'removed' | 'would-remove' | 'already-gone' | 'failed'
 
 export type RemovalResult = {
   id: string

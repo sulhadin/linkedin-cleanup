@@ -15,6 +15,8 @@ export const config = {
   maxConnections: int(process.env.INCLEANUP_MAX_CONNECTIONS, 5000),
   /** Scroll rounds without new profiles before the scrape is considered complete. */
   scrollIdleRounds: int(process.env.INCLEANUP_SCROLL_IDLE_ROUNDS, 12),
+  /** New connections between snapshot writes, so an interrupted scan is not lost. */
+  checkpointEvery: int(process.env.INCLEANUP_CHECKPOINT_EVERY, 200),
   /** Pause after each scroll, for LinkedIn to append the next page of cards. */
   scrollWaitMs: int(process.env.INCLEANUP_SCROLL_WAIT, 1200),
 

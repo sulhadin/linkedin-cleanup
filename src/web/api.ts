@@ -19,7 +19,7 @@ export type Status = {
 export type RemovalResult = {
   id: string
   name: string
-  outcome: 'removed' | 'already-gone' | 'failed'
+  outcome: 'removed' | 'would-remove' | 'already-gone' | 'failed'
   error?: string
 }
 

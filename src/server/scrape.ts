@@ -13,10 +13,56 @@ type Card = {
   avatarUrl: string
 }
 
-const parseConnectedText = (text: string): number | undefined => {
-  const date = Date.parse(text.replace(/^[^\d]*/, ''))
-  return Number.isFinite(date) ? date : undefined
+export type ScrapeOptions = {
+  onProgress: (count: number, total: number | null) => void
+  /** Called periodically so a scan interrupted halfway is not wasted. */
+  onCheckpoint: (connections: Connection[]) => Promise<void>
+  shouldStop: () => boolean
 }
+
+const TURKISH_MONTHS = [
+  'ocak',
+  'şubat',
+  'mart',
+  'nisan',
+  'mayıs',
+  'haziran',
+  'temmuz',
+  'ağustos',
+  'eylül',
+  'ekim',
+  'kasım',
+  'aralık',
+]
+
+/**
+ * "Connected on June 29, 2026" / "22 Ağustos 2024". The label has to be matched
+ * around rather than stripped — trimming to the first digit eats the month.
+ */
+const parseConnectedText = (text: string): number | undefined => {
+  const english = text.match(/([A-Za-z]+)\s+(\d{1,2}),?\s*(\d{4})/)
+  if (english) {
+    const parsed = Date.parse(`${english[1]} ${english[2]}, ${english[3]}`)
+    if (Number.isFinite(parsed)) return parsed
+  }
+
+  const turkish = text.match(/(\d{1,2})\s+([^\s\d]+)\s+(\d{4})/)
+  if (turkish) {
+    const month = TURKISH_MONTHS.indexOf(turkish[2]!.toLocaleLowerCase('tr'))
+    if (month >= 0) return Date.UTC(Number(turkish[3]), month, Number(turkish[1]))
+  }
+
+  return undefined
+}
+
+const toConnection = (card: Card): Connection => ({
+  id: card.id,
+  name: card.name || card.id,
+  headline: card.headline,
+  profileUrl: profileUrl(card.id),
+  avatarUrl: card.avatarUrl || undefined,
+  connectedAt: parseConnectedText(card.connectedText),
+})
 
 /**
  * Cards are accumulated across scroll rounds rather than snapshotted at the
@@ -28,9 +74,8 @@ async function absorb(page: Page, into: Map<string, Card>): Promise<void> {
   for (const card of cards) if (!into.has(card.id)) into.set(card.id, card)
 }
 
-export async function scrapeConnections(
-  onProgress: (count: number, total: number | null) => void,
-): Promise<Connection[]> {
+export async function scrapeConnections(options: ScrapeOptions): Promise<Connection[]> {
+  const { onProgress, onCheckpoint, shouldStop } = options
   const page = await workPage()
   const cards = new Map<string, Card>()
 
@@ -43,7 +88,10 @@ export async function scrapeConnections(
   onProgress(cards.size, target)
 
   let idleRounds = 0
+  let checkpointedAt = 0
+
   while (idleRounds < config.scrollIdleRounds && cards.size < config.maxConnections) {
+    if (shouldStop()) break
     if (target !== null && cards.size >= target) break
 
     const before = cards.size
@@ -54,14 +102,12 @@ export async function scrapeConnections(
     await absorb(page, cards)
     idleRounds = cards.size > before ? 0 : idleRounds + 1
     onProgress(cards.size, target)
+
+    if (cards.size - checkpointedAt >= config.checkpointEvery) {
+      checkpointedAt = cards.size
+      await onCheckpoint([...cards.values()].map(toConnection))
+    }
   }
 
-  return [...cards.values()].slice(0, config.maxConnections).map((card) => ({
-    id: card.id,
-    name: card.name || card.id,
-    headline: card.headline,
-    profileUrl: profileUrl(card.id),
-    avatarUrl: card.avatarUrl || undefined,
-    connectedAt: parseConnectedText(card.connectedText),
-  }))
+  return [...cards.values()].slice(0, config.maxConnections).map(toConnection)
 }

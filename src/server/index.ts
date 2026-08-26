@@ -48,14 +48,20 @@ app.post('/api/scrape', (_req, res) => {
   try {
     const job = startJob('scrape', async (j) => {
       j.emit({ type: 'log', message: 'Opening your LinkedIn connections page…' })
-      const connections = await scrapeConnections((count, total) =>
-        j.emit({
-          type: 'progress',
-          done: count,
-          total,
-          message: total ? `${count} of ${total} connections` : `${count} connections found`,
-        }),
-      )
+      const connections = await scrapeConnections({
+        onProgress: (count, total) =>
+          j.emit({
+            type: 'progress',
+            done: count,
+            total,
+            message: total ? `${count} of ${total} connections` : `${count} connections found`,
+          }),
+        onCheckpoint: async (partial) => {
+          await writeSnapshot(partial)
+          j.emit({ type: 'log', message: `Saved ${partial.length} so far.` })
+        },
+        shouldStop: () => j.shouldStop,
+      })
       await writeSnapshot(connections)
       return `Found ${connections.length} connections.`
     })
@@ -87,7 +93,7 @@ app.post('/api/remove', async (req, res) => {
       j.emit({
         type: 'log',
         message: dryRun
-          ? `Dry run: walking ${targets.length} profiles without confirming.`
+          ? `Dry run: locating ${targets.length} people and checking the remove control.`
           : `Removing ${targets.length} connections.`,
       })
 
@@ -109,10 +115,14 @@ app.post('/api/remove', async (req, res) => {
         )
       }
 
-      const removed = results.filter((r) => r.outcome === 'removed').length
       const gone = results.filter((r) => r.outcome === 'already-gone').length
       const failed = results.filter((r) => r.outcome === 'failed').length
-      return `${dryRun ? 'Dry run: ' : ''}${removed} removed, ${gone} already gone, ${failed} failed.`
+      if (dryRun) {
+        const ready = results.filter((r) => r.outcome === 'would-remove').length
+        return `Dry run: ${ready} ready to remove, ${gone} not in the list, ${failed} unreachable.`
+      }
+      const removed = results.filter((r) => r.outcome === 'removed').length
+      return `${removed} removed, ${gone} already gone, ${failed} failed.`
     })
     res.json({ jobId: job.state.id })
   } catch (error) {

@@ -69,8 +69,9 @@ Press `r` to scan. Mark people with `space`, then press `↵` and confirm.
 Removing a connection is **not reversible** on LinkedIn — re-adding someone
 means sending a fresh invite they have to accept.
 
-- The confirm dialog has a **dry run** mode: it walks every profile and opens
-  the removal dialog, but never clicks the final button.
+- The confirm dialog has a **dry run** mode: it finds each person and verifies
+  the "Remove connection" control is reachable, then closes the menu without
+  clicking it. It cannot remove anyone.
 - Every attempt is appended to `~/.incleanup/removals.log` (timestamp, outcome,
   profile id, name), so you can always find someone you cut by mistake.
 - Removals are capped at 100 per run and paced 3.5–7s apart. LinkedIn does throttle
@@ -81,8 +82,8 @@ means sending a fresh invite they have to accept.
 | Piece            | Approach                                                                                                                                                 |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Browser access   | `playwright-core` attaches over CDP to a browser you launched. It only ever drives a tab it opened itself — your other tabs are never read or navigated.  |
-| Reading the list | The connections page is scrolled to the end. The DOM decides *who* is in the list; the JSON the page fetches for itself is read passively to fill in headlines, avatars and connection dates. incleanup makes no API calls of its own. |
-| Removing         | Each profile is opened normally, then **More → Remove Connection → Remove** is clicked. Menu labels are matched in English and Turkish.                   |
+| Reading the list | The connections page is scrolled to the end and rows are read from the DOM as they appear, since LinkedIn virtualises the list. The page's own declared total is used as the target so a mid-list stall is not mistaken for the end. incleanup makes no API calls of its own. |
+| Removing         | Done from the connections list, never by opening profiles — so nobody gets a "viewed your profile" notice. Each person is filtered in by name, matched by profile id, then **More actions → Remove connection** (plus a confirmation, if LinkedIn asks for one). Labels are matched in English and Turkish. |
 | Storage          | `~/.incleanup/connections.json` (snapshot) and `~/.incleanup/removals.log`. Neither is ever committed.                                                    |
 
 ## Configuration
@@ -102,9 +103,14 @@ All optional, via environment variables:
 
 ## Caveats
 
-LinkedIn rewrites its markup often. If a scan returns nothing or removals start
-failing with "Could not find the profile More menu", the selectors in
-`src/server/scrape.ts` and `src/server/remove.ts` are the places to look.
+LinkedIn rewrites its markup often. Rows are found by `componentkey`, with a
+structural fallback that infers cards from the profile links themselves. If a
+scan returns nothing, or removals start reporting "Card has no More actions
+button", the selectors live in `src/server/harvest.ts` and
+`src/server/remove.ts`.
+
+A scan of ~1,200 connections takes several minutes; partial results are written
+to disk every 200 people, so an interrupted scan is not wasted.
 
 Automating your own account is your call and your risk — LinkedIn's User
 Agreement discourages automated access regardless of intent.
