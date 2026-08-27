@@ -1,6 +1,11 @@
 export type DatasetKind = 'connections' | 'pages' | 'following'
 
-export type DatasetInfo = { kind: DatasetKind; label: string; verb: 'remove' | 'unfollow' }
+export type DatasetInfo = {
+  kind: DatasetKind
+  label: string
+  short: string
+  verb: 'remove' | 'unfollow'
+}
 
 export type Entity = {
   id: string
@@ -13,7 +18,7 @@ export type Entity = {
   mutual?: number | null
 }
 
-export type Snapshot = { scrapedAt: number | null; entities: Entity[] }
+export type Snapshot = { scrapedAt: number | null; entities: Entity[]; protectedIds: string[] }
 
 export type Status = {
   chrome: boolean
@@ -50,6 +55,13 @@ async function json<T>(path: string, init?: RequestInit): Promise<T> {
 export const getStatus = () => json<Status>('/api/status')
 
 export const getDataset = (kind: DatasetKind) => json<Snapshot>(`/api/datasets/${kind}`)
+
+/** Adds to or removes from the keep list — entries incleanup must never touch. */
+export const setProtected = (kind: DatasetKind, ids: string[], protect: boolean) =>
+  json<{ protectedIds: string[] }>(`/api/datasets/${kind}/protect`, {
+    method: 'POST',
+    body: JSON.stringify({ ids, protect }),
+  })
 
 export const startScan = (kind: DatasetKind) =>
   json<{ jobId: string }>(`/api/datasets/${kind}/scan`, { method: 'POST' })

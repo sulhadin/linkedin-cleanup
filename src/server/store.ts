@@ -75,6 +75,49 @@ export async function mergeIntoSnapshot(
   )
 }
 
+const whitelistPath = () => path.join(config.dataDir, 'whitelist.json')
+
+type Whitelist = Partial<Record<DatasetKind, string[]>>
+
+export async function readWhitelist(): Promise<Whitelist> {
+  try {
+    const parsed = JSON.parse(await fs.readFile(whitelistPath(), 'utf8')) as Whitelist
+    return typeof parsed === 'object' && parsed !== null ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+export async function readProtectedIds(kind: DatasetKind): Promise<Set<string>> {
+  return new Set((await readWhitelist())[kind] ?? [])
+}
+
+/**
+ * The whitelist is the one list that must never be lost to a mistake elsewhere,
+ * so it lives in its own file rather than as a flag inside a snapshot a rescan
+ * rewrites.
+ */
+export async function setProtected(
+  kind: DatasetKind,
+  ids: string[],
+  isProtected: boolean,
+): Promise<string[]> {
+  await ensureDataDir()
+  const whitelist = await readWhitelist()
+  const current = new Set(whitelist[kind] ?? [])
+
+  for (const id of ids) {
+    if (isProtected) current.add(id)
+    else current.delete(id)
+  }
+
+  whitelist[kind] = [...current]
+  const tmp = path.join(config.dataDir, `whitelist.${process.pid}.tmp`)
+  await fs.writeFile(tmp, JSON.stringify(whitelist, null, 2), 'utf8')
+  await fs.rename(tmp, whitelistPath())
+  return whitelist[kind]!
+}
+
 /**
  * Removals and unfollows are irreversible on LinkedIn's side, so every attempt
  * is appended to a local log the user can consult afterwards.

@@ -118,6 +118,20 @@ export const IconAuto = (props: IconProps) => (
   </Svg>
 )
 
+export const IconShield = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M12 3l7.5 3v5.5c0 4.4-3.1 8.4-7.5 9.5-4.4-1.1-7.5-5.1-7.5-9.5V6z" />
+    <path d="M9 12l2 2 4-4" />
+  </Svg>
+)
+
+export const IconShieldOff = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M12 3l7.5 3v5.5c0 4.4-3.1 8.4-7.5 9.5-4.4-1.1-7.5-5.1-7.5-9.5V6z" />
+    <path d="M9.5 12.5l5-5" />
+  </Svg>
+)
+
 export const IconStop = (props: IconProps) => (
   <Svg {...props}>
     <rect x="6" y="6" width="12" height="12" rx="2" />

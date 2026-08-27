@@ -98,6 +98,20 @@ Filtered to people you share no connections with, three of them marked:
 | `↵` | Act on what you marked |
 | `d` | Toggle dry run, in the confirm box |
 
+## Keeping people off the list
+
+Some connections you will never want to remove, and scrolling past them every
+time is how mistakes happen. Mark them and press <kbd>w</kbd> — or the **Keep**
+button — and they disappear from the list entirely.
+
+The counter in the status bar shows how many you are keeping; **show** switches
+to that view, where you can select someone and press <kbd>w</kbd> again to stop
+keeping them. There is no remove button in that view.
+
+The keep list is enforced by the app itself, not just hidden in the interface:
+anything on it is refused even if a stale page or a scripted call asks for it.
+It lives in `~/.incleanup/whitelist.json` and a rescan does not touch it.
+
 ## Light or dark
 
 It follows your system by default, which is why it can open dark on a dark

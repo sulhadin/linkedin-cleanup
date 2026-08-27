@@ -114,6 +114,16 @@ including services bound to localhost.
 The URLs are also signed and expire in weeks, so the row falls back to initials
 when an image will not load, whatever the reason.
 
+## The keep list
+
+Protected entries are filtered out of the list in the UI, but that is the
+convenience, not the guarantee: `/api/datasets/:kind/act` drops them from the
+targets before anything runs, so a stale page or a hand-rolled request cannot
+reach them either.
+
+It is stored in its own `whitelist.json` rather than as a flag on the entities,
+so a rescan — which rewrites the snapshot wholesale — cannot lose it.
+
 ## Why not the internal API
 
 LinkedIn's public API does not expose connection management at all, and the

@@ -3,6 +3,7 @@ import {
   getDataset,
   getStatus,
   startAction,
+  setProtected,
   startEnrich,
   startScan,
   stopJob,
@@ -20,6 +21,8 @@ import {
   IconMoon,
   IconRefresh,
   IconSearch,
+  IconShield,
+  IconShieldOff,
   IconSquare,
   IconStop,
   IconSun,
@@ -72,6 +75,8 @@ export function App() {
   const [query, setQuery] = useState('')
   const [mutualFilter, setMutualFilter] = useState<MutualFilter>('any')
   const [corporateOnly, setCorporateOnly] = useState(false)
+  const [protectedIds, setProtectedIds] = useState<Set<string>>(new Set())
+  const [showProtected, setShowProtected] = useState(false)
   const [cursor, setCursor] = useState(0)
   const [confirming, setConfirming] = useState(false)
   const [dryRun, setDryRun] = useState(false)
@@ -91,6 +96,7 @@ export function App() {
     const snapshot = await getDataset(kind)
     setEntities(snapshot.entities)
     setScrapedAt(snapshot.scrapedAt)
+    setProtectedIds(new Set(snapshot.protectedIds))
 
     // Entries acted on are gone from the snapshot; keeping them selected would
     // leave the count pointing at people who are no longer there.
@@ -110,12 +116,16 @@ export function App() {
   useEffect(() => {
     setSelected(new Set())
     setCursor(0)
+    setShowProtected(false)
     void refresh().catch((e: unknown) => setError(String(e)))
   }, [refresh])
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
     return entities.filter((entity) => {
+      // The keep list is a hard exclusion, not a filter you can accidentally
+      // clear: those entries are only ever visible in their own view.
+      if (protectedIds.has(entity.id) !== showProtected) return false
       if (needle.length > 0) {
         const haystack = `${entity.name} ${entity.headline} ${entity.id}`.toLowerCase()
         if (!haystack.includes(needle)) return false
@@ -124,7 +134,7 @@ export function App() {
       if (corporateOnly && !looksCorporate(entity).flagged) return false
       return true
     })
-  }, [entities, query, mutualFilter, corporateOnly, isConnections])
+  }, [entities, query, mutualFilter, corporateOnly, isConnections, protectedIds, showProtected])
 
   useEffect(() => {
     setCursor((current) => Math.min(current, Math.max(0, filtered.length - 1)))
@@ -184,6 +194,20 @@ export function App() {
       }
     },
     [attach],
+  )
+
+  const protect = useCallback(
+    async (isProtected: boolean) => {
+      setError(null)
+      try {
+        const { protectedIds: next } = await setProtected(kind, [...selected], isProtected)
+        setProtectedIds(new Set(next))
+        setSelected(new Set())
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : String(e))
+      }
+    },
+    [kind, selected],
   )
 
   const runScan = useCallback(() => run(() => startScan(kind), 'scan'), [kind, run])
@@ -297,6 +321,11 @@ export function App() {
           setSelected(new Set())
           return
         }
+        case 'w': {
+          event.preventDefault()
+          if (selected.size > 0) void protect(!showProtected)
+          return
+        }
         case 'r': {
           event.preventDefault()
           if (!busy) void runScan()
@@ -312,6 +341,8 @@ export function App() {
     confirming,
     cursor,
     filtered,
+    protect,
+    showProtected,
     query,
     runAction,
     runScan,
@@ -353,7 +384,7 @@ export function App() {
                 disabled={busy}
               >
                 <TabIcon />
-                {info.label}
+                {info.short}
               </button>
             )
           })}
@@ -371,15 +402,22 @@ export function App() {
             <IconRefresh />
             {entities.length === 0 ? 'Scan' : 'Rescan'}
           </button>
-          <button
-            className="danger"
-            onClick={() => setConfirming(true)}
-            disabled={busy || selected.size === 0}
-          >
-            {verb === 'remove' ? <IconTrash /> : <IconUserMinus />}
-            {verb === 'remove' ? 'Remove' : 'Unfollow'}
+          <button onClick={() => void protect(!showProtected)} disabled={selected.size === 0}>
+            {showProtected ? <IconShieldOff /> : <IconShield />}
+            {showProtected ? 'Stop keeping' : 'Keep'}
             {selected.size > 0 && ` ${selected.size}`}
           </button>
+          {!showProtected && (
+            <button
+              className="danger"
+              onClick={() => setConfirming(true)}
+              disabled={busy || selected.size === 0}
+            >
+              {verb === 'remove' ? <IconTrash /> : <IconUserMinus />}
+              {verb === 'remove' ? 'Remove' : 'Unfollow'}
+              {selected.size > 0 && ` ${selected.size}`}
+            </button>
+          )}
           </div>
         </header>
       </div>
@@ -446,6 +484,18 @@ export function App() {
             </button>
           </span>
         )}
+        <span className={showProtected ? 'active' : undefined}>
+          <strong>{protectedIds.size}</strong> kept
+          <button
+            className="link"
+            onClick={() => {
+              setSelected(new Set())
+              setShowProtected((value) => !value)
+            }}
+          >
+            {showProtected ? 'back to list' : 'show'}
+          </button>
+        </span>
         {scrapedAt && <span className="dim">scanned {new Date(scrapedAt).toLocaleString()}</span>}
       </div>
 
@@ -456,7 +506,11 @@ export function App() {
         onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
       >
         {filtered.length === 0 ? (
-          <Empty hasEntities={entities.length > 0} label={dataset?.label ?? 'entries'} />
+          <Empty
+            hasEntities={entities.length > 0}
+            label={dataset?.label ?? 'entries'}
+            keepView={showProtected}
+          />
         ) : (
           <div style={{ height: filtered.length * ROW_HEIGHT, position: 'relative' }}>
             {visible.map((entity, index) => {
@@ -488,6 +542,7 @@ export function App() {
         <Hint keys="shift+↑↓" label="range" />
         <Hint keys="a" label="all shown" />
         <Hint keys="n" label="none" />
+        <Hint keys="w" label={showProtected ? 'stop keeping' : 'keep'} />
         <Hint keys="/" label="search" />
         <Hint keys="r" label="rescan" />
         <Hint keys="↵" label={verb === 'remove' ? 'remove selected' : 'unfollow selected'} />
@@ -731,7 +786,27 @@ function Banner({ tone, children }: { tone: 'warn' | 'error'; children: React.Re
   return <div className={`banner ${tone}`}>{children}</div>
 }
 
-function Empty({ hasEntities, label }: { hasEntities: boolean; label: string }) {
+function Empty({
+  hasEntities,
+  label,
+  keepView,
+}: {
+  hasEntities: boolean
+  label: string
+  keepView: boolean
+}) {
+  if (keepView) {
+    return (
+      <div className="empty">
+        <p>Nothing on the keep list yet.</p>
+        <p className="dim">
+          Mark anyone you never want to remove and press <kbd>w</kbd>. They stop appearing in
+          the list entirely.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="empty">
       {hasEntities ? (

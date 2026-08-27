@@ -15,7 +15,9 @@ import {
   dropFromSnapshot,
   logActions,
   mergeIntoSnapshot,
+  readProtectedIds,
   readSnapshot,
+  setProtected,
   writeScannedSnapshot,
   writeSnapshot,
 } from './store.ts'
@@ -39,7 +41,12 @@ const fail = (res: express.Response, error: unknown) =>
   res.status(error instanceof JobBusyError ? 409 : 500).json({ error: message(error) })
 
 const datasetList = () =>
-  Object.entries(DATASETS).map(([kind, spec]) => ({ kind, label: spec.label, verb: spec.verb }))
+  Object.entries(DATASETS).map(([kind, spec]) => ({
+    kind,
+    label: spec.label,
+    short: spec.short,
+    verb: spec.verb,
+  }))
 
 app.get('/api/status', async (_req, res) => {
   if (!(await isReachable())) {
@@ -98,7 +105,22 @@ app.get('/api/avatar', async (req, res) => {
 app.get('/api/datasets/:kind', async (req, res) => {
   const kind = req.params.kind
   if (!isKind(kind)) return res.status(404).json({ error: 'Unknown dataset.' })
-  res.json((await readSnapshot(kind)) ?? { scrapedAt: null, entities: [] })
+
+  const snapshot = (await readSnapshot(kind)) ?? { scrapedAt: null, entities: [] }
+  res.json({ ...snapshot, protectedIds: [...(await readProtectedIds(kind))] })
+})
+
+app.post('/api/datasets/:kind/protect', async (req, res) => {
+  const kind = req.params.kind
+  if (!isKind(kind)) return res.status(404).json({ error: 'Unknown dataset.' })
+
+  const ids: unknown = req.body?.ids
+  if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string')) {
+    return res.status(400).json({ error: 'Expected an `ids` array of strings.' })
+  }
+
+  const protectedIds = await setProtected(kind, ids as string[], req.body?.protect !== false)
+  res.json({ protectedIds })
 })
 
 app.post('/api/datasets/:kind/scan', (req, res) => {
@@ -167,12 +189,23 @@ app.post('/api/datasets/:kind/act', async (req, res) => {
 
   const snapshot = await readSnapshot(kind)
   const known = new Map((snapshot?.entities ?? []).map((e) => [e.id, e]))
-  const targets = (ids as string[])
+
+  // Enforced here rather than only in the UI: a protected entry must survive a
+  // stale page, a scripted call, or a bug in the filtering above it.
+  const isProtected = await readProtectedIds(kind)
+  const requested = (ids as string[]).filter((id) => !isProtected.has(id))
+  const blocked = (ids as string[]).length - requested.length
+
+  const targets = requested
     .map((id) => known.get(id))
     .filter((e): e is Entity => e !== undefined)
 
   if (targets.length === 0) {
-    return res.status(400).json({ error: 'None of those ids are in the current snapshot.' })
+    return res.status(400).json({
+      error: blocked > 0
+        ? `Every one of those is on the keep list.`
+        : 'None of those ids are in the current snapshot.',
+    })
   }
 
   const { verb, label } = DATASETS[kind]
@@ -185,6 +218,9 @@ app.post('/api/datasets/:kind/act', async (req, res) => {
           ? `Dry run: locating ${targets.length} in ${label.toLowerCase()}.`
           : `About to ${verb} ${targets.length}.`,
       })
+      if (blocked > 0) {
+        j.emit({ type: 'log', message: `Skipped ${blocked} on the keep list.` })
+      }
 
       const results = await runActions(
         kind,

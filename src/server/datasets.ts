@@ -21,7 +21,10 @@ type RawCard = {
 }
 
 export type DatasetSpec = {
+  /** Used in prose: job messages, dialogs. */
   label: string
+  /** Used on the tab, where width is scarce. */
+  short: string
   url: string
   harvest: string
   total: string
@@ -68,6 +71,7 @@ export const parseConnectedText = (text: string): number | undefined => {
 export const DATASETS: Record<DatasetKind, DatasetSpec> = {
   connections: {
     label: 'Connections',
+    short: 'Connections',
     url: CONNECTIONS_URL,
     harvest: HARVEST_NEW_CONNECTIONS,
     total: HARVEST_TOTAL,
@@ -83,6 +87,7 @@ export const DATASETS: Record<DatasetKind, DatasetSpec> = {
   },
   pages: {
     label: 'Followed pages',
+    short: 'Pages',
     url: PAGES_URL,
     harvest: HARVEST_PAGES,
     total: HARVEST_MANAGER_TOTAL,
@@ -97,6 +102,7 @@ export const DATASETS: Record<DatasetKind, DatasetSpec> = {
   },
   following: {
     label: 'People you follow',
+    short: 'Following',
     url: FOLLOWING_URL,
     harvest: HARVEST_FOLLOWED_PEOPLE,
     total: HARVEST_MANAGER_TOTAL,
