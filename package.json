@@ -17,6 +17,7 @@
     "dev:web": "vite",
     "build": "tsc --noEmit && vite build",
     "start": "NODE_ENV=production tsx src/server/index.ts",
+    "screenshots": "tsx scripts/screenshots.mts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

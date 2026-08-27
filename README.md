@@ -9,6 +9,8 @@ press `↵`, and it does the clicking for you.
 Nothing leaves your machine. No account, no API key — and incleanup never sees
 or asks for your LinkedIn password.
 
+![Connections list](docs/screenshots/connections.png)
+
 ## Install
 
 ```bash
@@ -45,6 +47,8 @@ stopping halfway is fine.
 
 Move with `↑` `↓`, mark with `space`. Confirm, and it works through your list.
 
+![Confirming a removal](docs/screenshots/confirm.png)
+
 ## The three tabs
 
 | Tab | What it cleans |
@@ -54,6 +58,8 @@ Move with `↑` `↓`, mark with `space`. Confirm, and it works through your lis
 | **People you follow** | People you follow without being connected → unfollows |
 
 Each tab scans separately — press `r` on each one.
+
+![Followed pages, dark mode](docs/screenshots/pages-dark.png)
 
 ## Finding who to remove
 
@@ -66,6 +72,10 @@ Each tab scans separately — press `r` on each one.
   It is a guess, so hover the `company?` tag to see why it was flagged.
 - **Select all** takes everything currently shown — filter first, then select
   all, then remove.
+
+Filtered to people you share no connections with, three of them marked:
+
+![Filtering by shared connections](docs/screenshots/filtered.png)
 
 ## Keys
 
@@ -118,6 +128,9 @@ initials instead.
 says what it hit. Rescan (`r`) and try that one again.
 
 ## Notes
+
+Screenshots use blurred photos and made-up names — the real lists are full of
+real people. `npm run screenshots` regenerates them the same way.
 
 Not affiliated with, endorsed by, or connected to LinkedIn. It drives your own
 account, in your own browser, on your own machine.
