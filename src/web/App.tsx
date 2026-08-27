@@ -14,7 +14,7 @@ import {
 import { looksCorporate } from './heuristics.ts'
 import { useJob } from './useJob.ts'
 
-const ROW_HEIGHT = 76
+const ROW_HEIGHT = 92
 const OVERSCAN = 6
 
 const MUTUAL_OPTIONS = [
@@ -308,7 +308,8 @@ export function App() {
 
   return (
     <div className="app">
-      <header className="header">
+      <div className="topbar">
+        <header className="header">
         <div className="brand">
           <LinkedInMark />
           <h1>
@@ -341,9 +342,11 @@ export function App() {
             {verb === 'remove' ? 'Remove' : 'Unfollow'}
             {selected.size > 0 && ` ${selected.size}`}
           </button>
-        </div>
-      </header>
+          </div>
+        </header>
+      </div>
 
+      <div className="content">
       {status && !status.chrome && <Banner tone="warn">{status.hint}</Banner>}
       {status?.chrome && !status.loggedIn && <Banner tone="warn">{status.hint}</Banner>}
       {error && <Banner tone="error">{error}</Banner>}
@@ -435,6 +438,8 @@ export function App() {
         )}
       </div>
 
+      </div>
+
       <footer className="help">
         <Hint keys="↑ ↓" label="move" />
         <Hint keys="space" label="select" />
@@ -481,6 +486,10 @@ function Row({
   onClick: () => void
 }) {
   const corporate = looksCorporate(entity)
+  // LinkedIn's CDN is happy to serve these, but a blocker on a non-LinkedIn
+  // origin is not, and an expired signature eventually 403s. Either way an
+  // empty frame is worse than initials.
+  const [imageBroken, setImageBroken] = useState(false)
   const className = ['row', isCursor && 'cursor', isSelected && 'selected']
     .filter(Boolean)
     .join(' ')
@@ -490,8 +499,15 @@ function Row({
       <span className="checkbox" aria-hidden>
         {isSelected ? '◉' : '○'}
       </span>
-      {entity.avatarUrl ? (
-        <img className="avatar" src={entity.avatarUrl} alt="" loading="lazy" />
+      {entity.avatarUrl && !imageBroken ? (
+        <img
+          className="avatar"
+          src={entity.avatarUrl}
+          alt=""
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={() => setImageBroken(true)}
+        />
       ) : (
         <span className="avatar placeholder" aria-hidden>
           {entity.name.charAt(0)}
@@ -507,15 +523,8 @@ function Row({
           )}
         </span>
         <span className="headline">{entity.headline}</span>
+        <span className="meta">{describe(entity, showMutual)}</span>
       </span>
-      {showMutual && (
-        <span className="mutual" title="Shared connections">
-          {typeof entity.mutual === 'number' ? entity.mutual : '–'}
-        </span>
-      )}
-      {entity.connectedAt && (
-        <span className="since">{new Date(entity.connectedAt).toLocaleDateString()}</span>
-      )}
       <a
         className="open"
         href={entity.url}
@@ -523,10 +532,30 @@ function Row({
         rel="noreferrer"
         onClick={(event) => event.stopPropagation()}
       >
-        open ↗
+        View profile
       </a>
     </div>
   )
+}
+
+/** The wording LinkedIn itself uses under a connection. */
+function describe(entity: Entity, showMutual: boolean): string {
+  const parts: string[] = []
+
+  if (showMutual && typeof entity.mutual === 'number') {
+    parts.push(`${entity.mutual} shared connection${entity.mutual === 1 ? '' : 's'}`)
+  }
+  if (entity.connectedAt) {
+    parts.push(
+      `Connected on ${new Date(entity.connectedAt).toLocaleDateString(undefined, {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })}`,
+    )
+  }
+
+  return parts.join(' · ')
 }
 
 function ConfirmDialog({

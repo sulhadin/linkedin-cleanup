@@ -84,19 +84,36 @@ code {
   display: flex;
   flex-direction: column;
   height: 100%;
-  max-width: 1128px;
+}
+
+/* LinkedIn's bar spans the window; everything under it sits in a 1128px column. */
+.content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(1128px, 100%);
   margin: 0 auto;
   padding: 16px 24px 12px;
-  gap: 12px;
 }
 
 /* ------------------------------------------------------------------ header */
+
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 0;
+}
 
 .header {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  width: min(1128px, 100%);
+  margin: 0 auto;
+  padding: 0 24px;
 }
 
 .brand {
@@ -362,6 +379,12 @@ button.link:hover:not(:disabled) {
   border-radius: 8px;
 }
 
+/* Focusable only so it can be scrolled; the ring says nothing useful. */
+.list:focus,
+.list:focus-visible {
+  outline: none;
+}
+
 .row {
   position: absolute;
   left: 0;
@@ -403,8 +426,8 @@ button.link:hover:not(:disabled) {
 }
 
 .avatar {
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   object-fit: cover;
   background: var(--surface-2);
@@ -431,6 +454,9 @@ button.link:hover:not(:disabled) {
   font-size: 16px;
   font-weight: 600;
   color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .headline {
@@ -441,18 +467,12 @@ button.link:hover:not(:disabled) {
   text-overflow: ellipsis;
 }
 
-.mutual {
-  min-width: 28px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-size: 14px;
-  color: var(--dim);
-}
-
-.since {
+.meta {
   color: var(--faint);
   font-size: 13px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .open {
