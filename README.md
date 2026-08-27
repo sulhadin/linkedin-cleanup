@@ -1,13 +1,13 @@
 # LinkedIn Cleanup
 
-**incleanup** — clean up your LinkedIn from your keyboard: prune connections you
-no longer recognise, and pages and people cluttering your feed.
+Clean up your LinkedIn from your keyboard: prune connections you no longer
+recognise, and pages and people cluttering your feed.
 
 It reads your lists into a fast local list. You pick with `↑` `↓` and `space`,
 press `↵`, and it does the clicking for you.
 
-Nothing leaves your machine. No account, no API key — and incleanup never sees
-or asks for your LinkedIn password.
+Nothing leaves your machine. No account, no API key — and it never sees or asks
+for your LinkedIn password.
 
 ![Connections list](docs/screenshots/connections.png)
 
@@ -34,7 +34,7 @@ session is remembered.
 > required: Chrome refuses to be automated on your normal profile.
 > Use `npm run brave` if you prefer Brave.
 
-**2. Start incleanup.**
+**2. Start it.**
 
 ```bash
 npm run dev
@@ -122,8 +122,8 @@ the page.
 connections page yourself for a moment and scan again; LinkedIn sometimes stops
 feeding rows.
 
-**Profile photos missing** — they are served through incleanup itself so
-blockers do not drop them. If one still fails, the row shows the person's
+**Profile photos missing** — they are served through the app itself so blockers
+do not drop them. If one still fails, the row shows the person's
 initials instead.
 
 **Something says "failed"** — nothing was removed for that person. The message

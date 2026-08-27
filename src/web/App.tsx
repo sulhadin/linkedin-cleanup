@@ -313,9 +313,8 @@ export function App() {
         <div className="brand">
           <LinkedInMark />
           <h1>
-            <span className="in">in</span>cleanup
+            <span className="struck">LinkedIn</span> Cleanup
           </h1>
-          <span className="subtitle">LinkedIn cleanup</span>
           <StatusPill status={status} />
         </div>
         <nav className="tabs">

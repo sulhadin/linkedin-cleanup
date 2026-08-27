@@ -4,7 +4,7 @@ import { config } from './config.ts'
 export class ChromeUnreachableError extends Error {
   constructor(port: number) {
     super(
-      `No Chrome with remote debugging on port ${port}. Start it with \`npm run chrome\`, ` +
+      `No browser with remote debugging on port ${port}. Start it with \`npm run chrome\`, ` +
         `then log in to LinkedIn in the window that opens.`,
     )
     this.name = 'ChromeUnreachableError'
@@ -37,8 +37,8 @@ function firstContext(b: Browser): BrowserContext {
 }
 
 /**
- * The working tab. incleanup only ever drives a tab it opened itself — the
- * user's other tabs are visible over CDP but are never read or navigated.
+ * The working tab. Only ever a tab this app opened itself — the user's other
+ * tabs are visible over CDP but are never read or navigated.
  */
 export async function workPage(): Promise<Page> {
   const b = await connect()

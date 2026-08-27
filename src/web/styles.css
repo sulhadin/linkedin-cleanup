@@ -129,8 +129,12 @@ code {
   letter-spacing: -0.4px;
 }
 
-.brand .in {
+/* The name is the joke: LinkedIn, crossed out. */
+.brand .struck {
   color: var(--linkedin);
+  text-decoration: line-through;
+  text-decoration-color: var(--danger);
+  text-decoration-thickness: 2px;
 }
 
 .mark {
@@ -138,14 +142,6 @@ code {
   height: 26px;
   color: var(--linkedin);
   flex-shrink: 0;
-}
-
-.subtitle {
-  font-size: 13px;
-  color: var(--dim);
-  padding-left: 8px;
-  border-left: 1px solid var(--border-strong);
-  margin-left: 2px;
 }
 
 .tabs {

@@ -57,7 +57,7 @@ app.get('/api/status', async (_req, res) => {
   res.json({
     chrome: true,
     loggedIn,
-    hint: loggedIn ? null : 'Log in to LinkedIn in the incleanup browser window, then reload.',
+    hint: loggedIn ? null : 'Log in to LinkedIn in the browser window that opened, then reload.',
     activeJob: job ? { id: job.state.id, kind: job.state.kind } : null,
     datasets: datasetList(),
   })
@@ -255,5 +255,5 @@ if (process.env.NODE_ENV === 'production') {
 closeTabOnExit()
 
 app.listen(config.port, '127.0.0.1', () => {
-  console.log(`incleanup api → http://127.0.0.1:${config.port}`)
+  console.log(`LinkedIn Cleanup → http://127.0.0.1:${config.port}`)
 })
