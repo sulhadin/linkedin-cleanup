@@ -18,7 +18,8 @@
     "build": "tsc --noEmit && vite build",
     "start": "NODE_ENV=production tsx src/server/index.ts",
     "screenshots": "tsx scripts/screenshots.mts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/server/*.test.ts"
   },
   "dependencies": {
     "express": "^4.21.2",

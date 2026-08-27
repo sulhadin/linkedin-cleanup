@@ -25,19 +25,29 @@ export async function writeSnapshot(kind: DatasetKind, entities: Entity[]): Prom
   return snapshot
 }
 
+export type Enrichment = Map<string, number | null | undefined>
+
+/**
+ * Read once before a scan starts. It cannot be re-read per write: a scan
+ * checkpoints as it goes, so by the second checkpoint the stored snapshot is
+ * the scan's own partial result, and merging against that erases everything
+ * the earlier checkpoints had not yet reached.
+ */
+export async function readEnrichment(kind: DatasetKind): Promise<Enrichment> {
+  const snapshot = await readSnapshot(kind)
+  return new Map((snapshot?.entities ?? []).map((entity) => [entity.id, entity.mutual]))
+}
+
 /**
  * A scan only knows what the list page shows, so writing its result verbatim
- * would erase anything looked up separately — shared-connection counts took
+ * would erase anything looked up separately — shared-connection counts take
  * minutes to gather and must survive a rescan.
  */
 export async function writeScannedSnapshot(
   kind: DatasetKind,
   entities: Entity[],
+  enrichment: Enrichment,
 ): Promise<Snapshot> {
-  const previous = await readSnapshot(kind)
-  if (!previous) return writeSnapshot(kind, entities)
-
-  const enrichment = new Map(previous.entities.map((entity) => [entity.id, entity.mutual]))
   return writeSnapshot(
     kind,
     entities.map((entity) => {

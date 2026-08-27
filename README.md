@@ -156,6 +156,11 @@ says what it hit. Rescan (`r`) and try that one again.
 
 ## Notes
 
+```bash
+npm test        # regression tests for the snapshot store
+npm run build   # typecheck and build
+```
+
 Screenshots use blurred photos and made-up names — the real lists are full of
 real people. `npm run screenshots` regenerates them the same way.
 

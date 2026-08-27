@@ -15,6 +15,7 @@ import {
   dropFromSnapshot,
   logActions,
   mergeIntoSnapshot,
+  readEnrichment,
   readProtectedIds,
   readSnapshot,
   setProtected,
@@ -130,6 +131,7 @@ app.post('/api/datasets/:kind/scan', (req, res) => {
   try {
     const job = startJob('scan', async (j) => {
       j.emit({ type: 'log', message: `Opening ${DATASETS[kind].label.toLowerCase()}…` })
+      const enrichment = await readEnrichment(kind)
       const entities = await scanDataset(kind, {
         onProgress: (count, total) =>
           j.emit({
@@ -139,12 +141,12 @@ app.post('/api/datasets/:kind/scan', (req, res) => {
             message: total ? `${count} of ${total}` : `${count} found`,
           }),
         onCheckpoint: async (partial) => {
-          await writeScannedSnapshot(kind, partial)
+          await writeScannedSnapshot(kind, partial, enrichment)
           j.emit({ type: 'log', message: `Saved ${partial.length} so far.` })
         },
         shouldStop: () => j.shouldStop,
       })
-      await writeScannedSnapshot(kind, entities)
+      await writeScannedSnapshot(kind, entities, enrichment)
       return `Found ${entities.length}.`
     })
     res.json({ jobId: job.state.id })
