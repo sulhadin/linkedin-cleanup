@@ -2,7 +2,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import express from 'express'
 import { config } from './config.ts'
-import { ChromeUnreachableError, checkLoggedIn, isReachable } from './browser.ts'
+import { ChromeUnreachableError, checkLoggedIn, closeTabOnExit, isReachable } from './browser.ts'
 import { runActions } from './actions.ts'
 import { DATASETS } from './datasets.ts'
 import { enrichMutuals } from './enrich.ts'
@@ -216,6 +216,8 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(webRoot))
   app.get('*', (_req, res) => res.sendFile(path.join(webRoot, 'index.html')))
 }
+
+closeTabOnExit()
 
 app.listen(config.port, '127.0.0.1', () => {
   console.log(`incleanup api → http://127.0.0.1:${config.port}`)

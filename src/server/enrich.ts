@@ -70,13 +70,19 @@ export async function enrichMutuals(options: EnrichOptions): Promise<EnrichResul
   for (let pageNumber = 1; pageNumber <= config.maxEnrichPages; pageNumber++) {
     if (shouldStop()) break
 
-    await page.goto(
-      `https://www.linkedin.com/search/results/people/?network=%5B%22F%22%5D&page=${pageNumber}`,
-      { waitUntil: 'domcontentloaded' },
-    )
-    await page.waitForTimeout(2600)
-
-    const rows = (await page.evaluate(HARVEST_SEARCH_RESULTS)) as { id: string; text: string }[]
+    let rows: { id: string; text: string }[]
+    try {
+      await page.goto(
+        `https://www.linkedin.com/search/results/people/?network=%5B%22F%22%5D&page=${pageNumber}`,
+        { waitUntil: 'domcontentloaded' },
+      )
+      await page.waitForTimeout(2600)
+      rows = (await page.evaluate(HARVEST_SEARCH_RESULTS)) as { id: string; text: string }[]
+    } catch {
+      // A tab closed or a navigation refused mid-run should not throw away the
+      // pages already gathered — this takes minutes to collect.
+      break
+    }
     pagesRead = pageNumber
 
     if (rows.length === 0) {

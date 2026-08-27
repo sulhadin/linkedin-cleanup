@@ -57,20 +57,50 @@ export async function isReachable(): Promise<boolean> {
   }
 }
 
+const signedIn = (url: string) =>
+  url.includes('linkedin.com') && !/\/(login|uas|checkpoint|signup)/.test(url)
+
 /**
  * LinkedIn bounces logged-out visitors from /feed/ to a login or guest page.
+ *
+ * Read twice: a tab caught mid-navigation reports whatever it was leaving, and
+ * telling someone they are logged out when they are not is worse than waiting.
  */
 export async function checkLoggedIn(): Promise<boolean> {
   const p = await workPage()
-  if (!p.url().includes('linkedin.com')) {
-    await p.goto('https://www.linkedin.com/feed/', { waitUntil: 'domcontentloaded' })
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (!p.url().includes('linkedin.com')) {
+      await p
+        .goto('https://www.linkedin.com/feed/', { waitUntil: 'domcontentloaded' })
+        .catch(() => {})
+    }
+    if (signedIn(p.url())) return true
+    await p.waitForTimeout(1200)
   }
-  const url = p.url()
-  return url.includes('linkedin.com') && !/\/(login|uas|checkpoint|signup)/.test(url)
+
+  return signedIn(p.url())
 }
 
 export async function disconnect(): Promise<void> {
+  // Closing the tab we opened, not the browser: over CDP `browser.close()`
+  // only drops the connection, and the tab would be left behind. Restarts
+  // otherwise pile up an abandoned LinkedIn tab every time.
+  await page?.close().catch(() => {})
   await browser?.close().catch(() => {})
   browser = null
   page = null
+}
+
+let shuttingDown = false
+
+export function closeTabOnExit(): void {
+  const cleanup = () => {
+    if (shuttingDown) return
+    shuttingDown = true
+    void disconnect().finally(() => process.exit(0))
+  }
+
+  process.once('SIGINT', cleanup)
+  process.once('SIGTERM', cleanup)
 }
