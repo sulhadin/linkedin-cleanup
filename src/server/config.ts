@@ -26,9 +26,13 @@ export const config = {
   maxUnfollowsPerRun: int(process.env.INCLEANUP_MAX_UNFOLLOWS, 500),
   /** Search result pages to walk when looking up mutual connections. */
   maxEnrichPages: int(process.env.INCLEANUP_MAX_ENRICH_PAGES, 100),
-  /** Randomised pause between removals, to stay in human territory. */
-  removalDelayMinMs: int(process.env.INCLEANUP_REMOVAL_DELAY_MIN, 3500),
-  removalDelayMaxMs: int(process.env.INCLEANUP_REMOVAL_DELAY_MAX, 7000),
+  /**
+   * Randomised pause between actions. Still a deliberate throttle — LinkedIn
+   * does restrict accounts that fire in a steady machine rhythm — but tuned for
+   * a clean-up session rather than maximum caution.
+   */
+  removalDelayMinMs: int(process.env.INCLEANUP_REMOVAL_DELAY_MIN, 1500),
+  removalDelayMaxMs: int(process.env.INCLEANUP_REMOVAL_DELAY_MAX, 3500),
 } as const
 
 export const actionLogPath = path.join(config.dataDir, 'removals.log')

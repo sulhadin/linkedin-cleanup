@@ -107,9 +107,11 @@ means sending a fresh invite they have to accept.
   or unfollow anyone.
 - Every attempt is appended to `~/.incleanup/removals.log` (timestamp, list,
   outcome, id, name), so you can always find someone you cut by mistake.
-- Actions are capped at 100 per run and paced 3.5–7s apart. LinkedIn does
-  throttle accounts that behave like scripts; do not raise these without
-  thinking about it.
+- Runs are capped: **100** connection removals (LinkedIn cannot undo them) and
+  **500** unfollows (following again is one click).
+- Actions are paced 1.5–3.5s apart, which works out around 5s per entry
+  end to end. That pause is a deliberate throttle — LinkedIn does restrict
+  accounts that fire in a steady machine rhythm — so lower it knowingly.
 
 ## How it works
 
@@ -132,9 +134,10 @@ All optional, via environment variables:
 | `INCLEANUP_PORT`               | `5274`  | API port                            |
 | `INCLEANUP_CDP_PORT`           | `9222`  | Browser remote debugging port       |
 | `INCLEANUP_DATA_DIR`           | `~/.incleanup` | Snapshot + log location      |
-| `INCLEANUP_MAX_REMOVALS`       | `100`   | Hard cap per run                    |
-| `INCLEANUP_REMOVAL_DELAY_MIN`  | `3500`  | Min pause between actions (ms)      |
-| `INCLEANUP_REMOVAL_DELAY_MAX`  | `7000`  | Max pause between actions (ms)      |
+| `INCLEANUP_MAX_REMOVALS`       | `100`   | Connection removals per run         |
+| `INCLEANUP_MAX_UNFOLLOWS`      | `500`   | Unfollows per run                   |
+| `INCLEANUP_REMOVAL_DELAY_MIN`  | `1500`  | Min pause between actions (ms)      |
+| `INCLEANUP_REMOVAL_DELAY_MAX`  | `3500`  | Max pause between actions (ms)      |
 | `INCLEANUP_MAX_CONNECTIONS`    | `5000`  | Scan ceiling                        |
 | `INCLEANUP_MAX_ENRICH_PAGES`   | `100`   | Search pages read for shared counts |
 | `INCLEANUP_BROWSER_BIN`        | —       | Explicit browser binary path        |
@@ -150,6 +153,14 @@ and `src/server/actions.ts` revisited.
 
 A scan of ~1,200 connections takes several minutes; partial results are written
 to disk every 200 entries, so an interrupted scan is not wasted.
+
+### Why the browser, and not the API
+
+LinkedIn's public API does not expose connection management at all, and its
+internal one has no bulk endpoint — removals are one call per person either way.
+Driving the UI is slower per entry, but it is the traffic LinkedIn expects from a
+signed-in person. Calling the internal API directly is the clearest automation
+signal an account can send, and the cost of being wrong is the account.
 
 Automating your own account is your call and your risk — LinkedIn's User
 Agreement discourages automated access regardless of intent.

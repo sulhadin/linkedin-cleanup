@@ -30,7 +30,7 @@ const visible = (locator: Locator, timeout: number) =>
 async function ensureOn(page: Page, url: string, marker: string): Promise<void> {
   if (page.url().includes(marker)) return
   await page.goto(url, { waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(2500)
+  await page.waitForTimeout(1500)
 }
 
 /**
@@ -73,9 +73,8 @@ async function filterTo(page: Page, name: string): Promise<void> {
   const box = searchBox(page)
   if (!(await visible(box, 5000))) return
   await box.fill('')
-  await page.waitForTimeout(500)
   await box.fill(name)
-  await page.waitForTimeout(1800)
+  await page.waitForTimeout(1200)
 }
 
 async function removeConnection(
@@ -100,10 +99,21 @@ async function removeConnection(
   if (!(await visible(moreActions, 4000))) {
     return { ...base, outcome: 'failed', error: 'Card has no "More actions" button' }
   }
-  await moreActions.click()
 
+  // The menu occasionally does not come up on the first click; one retry costs
+  // a second and saves reporting a healthy row as unreachable.
   const removeItem = page.getByRole('menuitem', { name: REMOVE_ITEM }).first()
-  if (!(await visible(removeItem, 4000))) {
+  let menuOpen = false
+  for (let attempt = 0; attempt < 2 && !menuOpen; attempt++) {
+    if (attempt > 0) {
+      await page.keyboard.press('Escape').catch(() => {})
+      await page.waitForTimeout(600)
+    }
+    await moreActions.click().catch(() => {})
+    menuOpen = await visible(removeItem, 3500)
+  }
+
+  if (!menuOpen) {
     await page.keyboard.press('Escape').catch(() => {})
     return { ...base, outcome: 'failed', error: 'Menu has no "Remove connection" entry' }
   }
@@ -119,10 +129,18 @@ async function removeConnection(
   const problem = await confirmDialog(page)
   if (problem) return { ...base, outcome: 'failed', error: problem }
 
-  await page.waitForTimeout(2000)
-  await filterTo(page, entity.name)
-  if ((await connectionCard(page, entity).count()) > 0) {
-    return { ...base, outcome: 'failed', error: 'Still listed as a connection afterwards' }
+  // The row usually drops out on its own, which is the cheap answer. When it
+  // lingers, re-running the filter asks LinkedIn instead of trusting the DOM.
+  const detached = await card
+    .waitFor({ state: 'detached', timeout: 6000 })
+    .then(() => true)
+    .catch(() => false)
+
+  if (!detached) {
+    await filterTo(page, entity.name)
+    if ((await connectionCard(page, entity).count()) > 0) {
+      return { ...base, outcome: 'failed', error: 'Still listed as a connection afterwards' }
+    }
   }
 
   return { ...base, outcome: 'done' }

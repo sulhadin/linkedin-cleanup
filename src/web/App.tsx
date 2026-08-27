@@ -66,6 +66,14 @@ export function App() {
     const snapshot = await getDataset(kind)
     setEntities(snapshot.entities)
     setScrapedAt(snapshot.scrapedAt)
+
+    // Entries acted on are gone from the snapshot; keeping them selected would
+    // leave the count pointing at people who are no longer there.
+    const present = new Set(snapshot.entities.map((entity) => entity.id))
+    setSelected((current) => {
+      const kept = [...current].filter((id) => present.has(id))
+      return kept.length === current.size ? current : new Set(kept)
+    })
   }, [kind])
 
   const { job, attach, dismiss } = useJob(refresh)
@@ -159,6 +167,8 @@ export function App() {
   const runAction = useCallback(async () => {
     await run(() => startAction(kind, [...selected], dryRun), 'act')
     setConfirming(false)
+    // A dry run changes nothing, so the selection is still what you want to act
+    // on; a real run has consumed it.
     if (!dryRun) setSelected(new Set())
   }, [dryRun, kind, run, selected])
 
