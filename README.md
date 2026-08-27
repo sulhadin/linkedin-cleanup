@@ -147,6 +147,16 @@ the page.
 connections page yourself for a moment and scan again; LinkedIn sometimes stops
 feeding rows.
 
+**The terminal fills with browser errors** — lines like `DEPRECATED_ENDPOINT`,
+`Failed to resolve address for stun.l.google.com`, `Selected adapter: Apple M1`
+or `Trying to load the allocator multiple times` come from the browser itself,
+not from this app. `npm run chrome` runs it in the foreground, so its own log
+lands in your terminal. They are harmless and appear on any Chromium started
+this way.
+
+**No tabs, or nothing loads** — the app's server is not running. Start it with
+`npm run dev`; the page says so as well.
+
 **Profile photos missing** — they are served through the app itself so blockers
 do not drop them. If one still fails, the row shows the person's
 initials instead.

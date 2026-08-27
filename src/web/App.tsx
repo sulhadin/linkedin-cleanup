@@ -31,6 +31,7 @@ import {
   IconUserMinus,
   IconUsers,
 } from './icons.tsx'
+import { DATASETS } from './datasets.ts'
 import { looksCorporate } from './heuristics.ts'
 import { useJob } from './useJob.ts'
 import { useTheme } from './useTheme.ts'
@@ -88,7 +89,7 @@ export function App() {
   const [scrollTop, setScrollTop] = useState(0)
   const [viewportHeight, setViewportHeight] = useState(600)
 
-  const dataset: DatasetInfo | undefined = status?.datasets.find((d) => d.kind === kind)
+  const dataset: DatasetInfo | undefined = DATASETS.find((d) => d.kind === kind)
   const verb = dataset?.verb ?? 'remove'
   const isConnections = kind === 'connections'
 
@@ -374,7 +375,7 @@ export function App() {
           <StatusPill status={status} />
         </div>
         <nav className="tabs">
-          {(status?.datasets ?? []).map((info) => {
+          {DATASETS.map((info) => {
             const TabIcon = TAB_ICONS[info.kind]
             return (
               <button
@@ -423,6 +424,11 @@ export function App() {
       </div>
 
       <div className="content">
+      {status === null && (
+        <Banner tone="error">
+          Can’t reach the app’s own server. Start it with <code>npm run dev</code>, then reload.
+        </Banner>
+      )}
       {status && !status.chrome && <Banner tone="warn">{status.hint}</Banner>}
       {status?.chrome && !status.loggedIn && <Banner tone="warn">{status.hint}</Banner>}
       {error && <Banner tone="error">{error}</Banner>}

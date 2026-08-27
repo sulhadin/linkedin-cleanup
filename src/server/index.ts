@@ -41,21 +41,12 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
 const fail = (res: express.Response, error: unknown) =>
   res.status(error instanceof JobBusyError ? 409 : 500).json({ error: message(error) })
 
-const datasetList = () =>
-  Object.entries(DATASETS).map(([kind, spec]) => ({
-    kind,
-    label: spec.label,
-    short: spec.short,
-    verb: spec.verb,
-  }))
-
 app.get('/api/status', async (_req, res) => {
   if (!(await isReachable())) {
     return res.json({
       chrome: false,
       loggedIn: false,
       hint: new ChromeUnreachableError(config.cdpPort).message,
-      datasets: datasetList(),
     })
   }
 
@@ -67,7 +58,6 @@ app.get('/api/status', async (_req, res) => {
     loggedIn,
     hint: loggedIn ? null : 'Log in to LinkedIn in the browser window that opened, then reload.',
     activeJob: job ? { id: job.state.id, kind: job.state.kind } : null,
-    datasets: datasetList(),
   })
 })
 

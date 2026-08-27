@@ -25,7 +25,6 @@ export type Status = {
   loggedIn: boolean
   hint: string | null
   activeJob?: { id: string; kind: string } | null
-  datasets: DatasetInfo[]
 }
 
 export type ActionResult = {
