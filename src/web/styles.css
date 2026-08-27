@@ -25,26 +25,24 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1b1f23;
-    --surface: #26292c;
-    --surface-2: #303539;
-    --border: rgba(255, 255, 255, 0.13);
-    --border-strong: rgba(255, 255, 255, 0.25);
-    --text: rgba(255, 255, 255, 0.9);
-    --dim: rgba(255, 255, 255, 0.65);
-    --faint: rgba(255, 255, 255, 0.45);
+:root[data-theme='dark'] {
+  --bg: #1b1f23;
+  --surface: #26292c;
+  --surface-2: #303539;
+  --border: rgba(255, 255, 255, 0.13);
+  --border-strong: rgba(255, 255, 255, 0.25);
+  --text: rgba(255, 255, 255, 0.9);
+  --dim: rgba(255, 255, 255, 0.65);
+  --faint: rgba(255, 255, 255, 0.45);
 
-    --primary: #71b7fb;
-    --primary-strong: #a8d3ff;
-    --primary-wash: rgba(113, 183, 251, 0.14);
-    --good: #44b678;
-    --warn: #e7a33e;
-    --danger: #f5987e;
+  --primary: #71b7fb;
+  --primary-strong: #a8d3ff;
+  --primary-wash: rgba(113, 183, 251, 0.14);
+  --good: #44b678;
+  --warn: #e7a33e;
+  --danger: #f5987e;
 
-    color-scheme: dark;
-  }
+  color-scheme: dark;
 }
 
 * {
@@ -134,7 +132,7 @@ code {
   color: var(--linkedin);
   text-decoration: line-through;
   text-decoration-color: var(--danger);
-  text-decoration-thickness: 2px;
+  text-decoration-thickness: 1px;
 }
 
 .mark {

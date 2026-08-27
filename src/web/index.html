@@ -6,6 +6,17 @@
     <title>LinkedIn Cleanup</title>
   </head>
   <body>
+    <script>
+      // Applied before first paint: reading it in React would flash the wrong
+      // theme on every load.
+      ;(() => {
+        const stored = localStorage.getItem('theme') || 'system'
+        const dark =
+          stored === 'dark' ||
+          (stored === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+      })()
+    </script>
     <div id="root"></div>
     <script type="module" src="./main.tsx"></script>
   </body>

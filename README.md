@@ -93,6 +93,12 @@ Filtered to people you share no connections with, three of them marked:
 | `↵` | Act on what you marked |
 | `d` | Toggle dry run, in the confirm box |
 
+## Light or dark
+
+It follows your system by default, which is why it can open dark on a dark
+desktop. The **Auto / Light / Dark** button in the header pins it either way,
+and the choice is remembered.
+
 ## Before you remove people
 
 **Removing a connection cannot be undone.** Getting someone back means sending a

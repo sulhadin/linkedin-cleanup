@@ -13,6 +13,7 @@ import {
 } from './api.ts'
 import { looksCorporate } from './heuristics.ts'
 import { useJob } from './useJob.ts'
+import { useTheme } from './useTheme.ts'
 
 const ROW_HEIGHT = 92
 const OVERSCAN = 6
@@ -53,6 +54,7 @@ export function App() {
   const [dryRun, setDryRun] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const { preference: theme, cycle: cycleTheme } = useTheme()
   const searchRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const [scrollTop, setScrollTop] = useState(0)
@@ -330,6 +332,9 @@ export function App() {
           ))}
         </nav>
         <div className="actions">
+          <button className="tab" onClick={cycleTheme} title="Theme: system, light or dark">
+            {theme === 'system' ? 'Auto' : theme === 'light' ? 'Light' : 'Dark'}
+          </button>
           <button onClick={() => void runScan()} disabled={busy}>
             {entities.length === 0 ? 'Scan' : 'Rescan'}
           </button>

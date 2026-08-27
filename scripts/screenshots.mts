@@ -63,6 +63,18 @@ async function shoot(page: Page, name: string) {
   console.log('wrote', `${name}.png`)
 }
 
+/**
+ * Pins the theme explicitly. Leaving it to the system preference would make the
+ * screenshots depend on whoever regenerates them.
+ */
+async function setTheme(page: Page, theme: 'light' | 'dark') {
+  await page.evaluate(`(() => {
+    localStorage.setItem('theme', ${JSON.stringify(theme)})
+    document.documentElement.dataset.theme = ${JSON.stringify(theme)}
+  })()`)
+  await settle(page, 300)
+}
+
 /** Clears filters and selection so each shot starts from a known state. */
 async function reset(page: Page) {
   await page.evaluate(`(() => {
@@ -82,9 +94,9 @@ try {
   await mkdir(OUT, { recursive: true })
   await page.setViewportSize({ width: 1280, height: 800 })
 
-  await page.emulateMedia({ colorScheme: 'light' })
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   await settle(page, 2500)
+  await setTheme(page, 'light')
   await reset(page)
   await shoot(page, 'connections')
 
@@ -123,7 +135,7 @@ try {
   await settle(page, 400)
 
   // Followed pages, in dark mode.
-  await page.emulateMedia({ colorScheme: 'dark' })
+  await setTheme(page, 'dark')
   await page.evaluate(`(() => {
     const tab = [...document.querySelectorAll('.tab')].find((b) => /Followed pages/.test(b.textContent))
     if (tab) tab.click()
@@ -132,6 +144,8 @@ try {
   await reset(page)
   await shoot(page, 'pages-dark')
 } finally {
+  // Never leave a preference behind in the profile this ran against.
+  await page.evaluate(`localStorage.removeItem('theme')`).catch(() => {})
   await page.close().catch(() => {})
   await browser.close().catch(() => {})
 }
