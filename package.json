@@ -1,5 +1,5 @@
 {
-  "name": "incleanup",
+  "name": "linkedin-cleanup",
   "version": "0.1.0",
   "private": true,
   "description": "Bulk-review and remove LinkedIn connections from a local keyboard-driven UI.",

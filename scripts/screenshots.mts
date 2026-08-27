@@ -17,59 +17,43 @@ const OUT = path.join(process.cwd(), 'docs', 'screenshots')
 const settle = (page: Page, ms = 1200) => page.waitForTimeout(ms)
 
 /**
- * These shots go in a public README, and the list is full of real people who
- * never agreed to appear there. Names and headlines are replaced and faces
- * blurred before anything is captured.
+ * These shots go in a public README, and the lists are full of real people and
+ * the pages a real account follows. Everything identifying is blurred before
+ * anything is captured — blurred rather than swapped for invented names, so
+ * there is no chance of a made-up name landing on a real person.
+ *
+ * Only the identifying parts go: counts, dates and the controls stay legible,
+ * which is what the screenshots are meant to show.
  */
 const ANONYMISE = `(() => {
-  const names = [
-    'Alex Mercer', 'Priya Raman', 'Tomás Oliveira', 'Wei Chen', 'Sofia Lindqvist',
-    'Daniel Okafor', 'Mira Halvorsen', 'Jonas Weber', 'Ana Ruiz', 'Kenji Sato',
-    'Laura Bianchi', 'Omar Haddad', 'Nina Kowalski', 'Sam Doyle', 'Yara Nasser',
-  ]
-  const roles = [
-    'Product Manager', 'Software Engineer', 'Talent Acquisition',
-    'Head of Marketing', 'Data Analyst', 'Engineering Manager',
-    'UX Researcher', 'Finance Lead', 'Account Executive',
-  ]
-  const companies = [
-    'Northwind Labs', 'Corvus Analytics', 'Halden Group', 'Basalt Studio',
-    'Verity Health', 'Orion Freight', 'Pinewood Media', 'Lumen Robotics',
-    'Kestrel Capital', 'Tidal Systems', 'Ferrous Works', 'Bright Harbour',
-  ]
-  const followers = ['312,332 followers', '39 followers', '8,104 followers', '176,540 followers']
-
-  // The pages tab lists organisations, so person names there would be a lie.
-  const activeTab = document.querySelector('.tab.active')
-  const isPages = /pages/i.test(activeTab ? activeTab.textContent : '')
-
-  document.querySelectorAll('.row').forEach((row, index) => {
-    const name = row.querySelector('.name')
-    if (name) {
-      const tag = name.querySelector('.tag')
-      name.textContent = isPages
-        ? companies[index % companies.length]
-        : names[index % names.length]
-      if (tag) name.appendChild(tag)
-    }
-    const headline = row.querySelector('.headline')
-    if (headline) {
-      headline.textContent = isPages
-        ? followers[index % followers.length]
-        : roles[index % roles.length]
-    }
-  })
-
-  document.querySelectorAll('.preview li').forEach((item, index) => {
-    if (!item.classList.contains('more')) item.textContent = names[index % names.length]
-  })
-
   if (!document.getElementById('anon-style')) {
     const style = document.createElement('style')
     style.id = 'anon-style'
-    style.textContent = 'img.avatar { filter: blur(7px); }'
+    style.textContent =
+      '.anon-blur { filter: blur(7px); }' +
+      '.avatar { filter: blur(8px); }'
     document.head.appendChild(style)
   }
+
+  // Wrapping the text rather than blurring the element keeps sibling badges,
+  // such as the "company?" tag, readable.
+  const blurText = (el) => {
+    if (!el) return
+    for (const node of [...el.childNodes]) {
+      if (node.nodeType !== Node.TEXT_NODE || !node.textContent.trim()) continue
+      const span = document.createElement('span')
+      span.className = 'anon-blur'
+      span.textContent = node.textContent
+      node.replaceWith(span)
+    }
+  }
+
+  for (const row of document.querySelectorAll('.row')) {
+    blurText(row.querySelector('.name'))
+    blurText(row.querySelector('.headline'))
+  }
+
+  for (const item of document.querySelectorAll('.preview li:not(.more)')) blurText(item)
 })()`
 
 async function shoot(page: Page, name: string) {
@@ -112,12 +96,18 @@ try {
     select.dispatchEvent(new Event('change', { bubbles: true }))
   })()`)
   await settle(page)
-  await page.evaluate(`(() => {
-    for (let i = 0; i < 3; i++) {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }))
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
-    }
-  })()`)
+  // One key at a time: fired back to back, every press lands on the same row
+  // because React has not re-rendered the cursor in between.
+  for (let i = 0; i < 3; i++) {
+    await page.evaluate(
+      `window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }))`,
+    )
+    await settle(page, 150)
+    await page.evaluate(
+      `window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))`,
+    )
+    await settle(page, 150)
+  }
   await settle(page, 600)
   await shoot(page, 'filtered')
 

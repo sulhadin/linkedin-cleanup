@@ -14,6 +14,8 @@ or asks for your LinkedIn password.
 ## Install
 
 ```bash
+git clone https://github.com/sulhadin/linkedin-cleanup.git
+cd linkedin-cleanup
 npm install
 ```
 
