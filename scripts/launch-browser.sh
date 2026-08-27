@@ -66,18 +66,40 @@ if curl -sf --max-time 1 "http://127.0.0.1:$PORT/json/version" >/dev/null; then
 fi
 
 mkdir -p "$PROFILE_DIR"
+LOG="${INCLEANUP_DATA_DIR:-$HOME/.incleanup}/browser.log"
+mkdir -p "$(dirname "$LOG")"
+
 echo "Launching browser"
 echo "  binary : $BROWSER"
 echo "  profile: $PROFILE_DIR"
 echo "  cdp    : http://127.0.0.1:$PORT"
-echo
-echo "This is a separate profile from your everyday one — Chromium refuses remote"
-echo "debugging on the default profile. Log in to LinkedIn in the window that"
-echo "opens (once), then run: npm run dev"
+echo "  log    : $LOG"
 
-exec "$BROWSER" \
+# Detached, not exec'd: the browser writes a steady stream of its own log lines
+# and would hold this terminal, leaving nowhere to run `npm run dev`.
+"$BROWSER" \
   --remote-debugging-port="$PORT" \
   --user-data-dir="$PROFILE_DIR" \
   --no-first-run \
   --no-default-browser-check \
-  "https://www.linkedin.com/feed/"
+  "https://www.linkedin.com/feed/" >>"$LOG" 2>&1 &
+
+BROWSER_PID=$!
+
+for _ in $(seq 1 40); do
+  if curl -sf --max-time 1 "http://127.0.0.1:$PORT/json/version" >/dev/null; then
+    echo
+    echo "Ready. Log in to LinkedIn in the window that opened — once; the session"
+    echo "is remembered. Then run:  npm run dev"
+    exit 0
+  fi
+  if ! kill -0 "$BROWSER_PID" 2>/dev/null; then
+    echo "The browser exited straight away. Last lines of $LOG:" >&2
+    tail -5 "$LOG" >&2
+    exit 1
+  fi
+  sleep 0.5
+done
+
+echo "Browser started but port $PORT never answered. See $LOG." >&2
+exit 1
