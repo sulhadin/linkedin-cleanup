@@ -11,12 +11,35 @@ import {
   type Entity,
   type Status,
 } from './api.ts'
+import {
+  IconAuto,
+  IconBuilding,
+  IconCheckSquare,
+  IconClose,
+  IconExternal,
+  IconMoon,
+  IconRefresh,
+  IconSearch,
+  IconSquare,
+  IconStop,
+  IconSun,
+  IconTrash,
+  IconUserCheck,
+  IconUserMinus,
+  IconUsers,
+} from './icons.tsx'
 import { looksCorporate } from './heuristics.ts'
 import { useJob } from './useJob.ts'
 import { useTheme } from './useTheme.ts'
 
 const ROW_HEIGHT = 92
 const OVERSCAN = 6
+
+const TAB_ICONS = {
+  connections: IconUsers,
+  pages: IconBuilding,
+  following: IconUserCheck,
+} as const
 
 const MUTUAL_OPTIONS = [
   { value: 'any', label: 'Any' },
@@ -320,22 +343,32 @@ export function App() {
           <StatusPill status={status} />
         </div>
         <nav className="tabs">
-          {(status?.datasets ?? []).map((info) => (
-            <button
-              key={info.kind}
-              className={info.kind === kind ? 'tab active' : 'tab'}
-              onClick={() => setKind(info.kind)}
-              disabled={busy}
-            >
-              {info.label}
-            </button>
-          ))}
+          {(status?.datasets ?? []).map((info) => {
+            const TabIcon = TAB_ICONS[info.kind]
+            return (
+              <button
+                key={info.kind}
+                className={info.kind === kind ? 'tab active' : 'tab'}
+                onClick={() => setKind(info.kind)}
+                disabled={busy}
+              >
+                <TabIcon />
+                {info.label}
+              </button>
+            )
+          })}
         </nav>
         <div className="actions">
-          <button className="tab" onClick={cycleTheme} title="Theme: system, light or dark">
-            {theme === 'system' ? 'Auto' : theme === 'light' ? 'Light' : 'Dark'}
+          <button
+            className="tab icon-only"
+            onClick={cycleTheme}
+            title={`Theme: ${theme} — click to change`}
+            aria-label={`Theme: ${theme}`}
+          >
+            {theme === 'system' ? <IconAuto /> : theme === 'light' ? <IconSun /> : <IconMoon />}
           </button>
           <button onClick={() => void runScan()} disabled={busy}>
+            <IconRefresh />
             {entities.length === 0 ? 'Scan' : 'Rescan'}
           </button>
           <button
@@ -343,6 +376,7 @@ export function App() {
             onClick={() => setConfirming(true)}
             disabled={busy || selected.size === 0}
           >
+            {verb === 'remove' ? <IconTrash /> : <IconUserMinus />}
             {verb === 'remove' ? 'Remove' : 'Unfollow'}
             {selected.size > 0 && ` ${selected.size}`}
           </button>
@@ -356,12 +390,15 @@ export function App() {
       {error && <Banner tone="error">{error}</Banner>}
 
       <div className="filters">
-        <input
-          ref={searchRef}
-          value={query}
-          placeholder="Search name, headline or id…   (press / to focus)"
-          onChange={(event) => setQuery(event.target.value)}
-        />
+        <div className="search">
+          <IconSearch />
+          <input
+            ref={searchRef}
+            value={query}
+            placeholder="Search name, headline or id…   (press / to focus)"
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
 
         {isConnections && (
           <label className="filter">
@@ -389,6 +426,7 @@ export function App() {
         </label>
 
         <button onClick={selectAllFiltered} disabled={filtered.length === 0}>
+          {allFilteredSelected ? <IconSquare /> : <IconCheckSquare />}
           {allFilteredSelected ? 'Deselect' : 'Select'} all {filtered.length}
         </button>
       </div>
@@ -536,6 +574,7 @@ function Row({
         rel="noreferrer"
         onClick={(event) => event.stopPropagation()}
       >
+        <IconExternal size={14} />
         View profile
       </a>
     </div>
@@ -604,6 +643,7 @@ function ConfirmDialog({
         <div className="dialog-actions">
           <button onClick={onCancel}>Cancel</button>
           <button className="danger" onClick={onConfirm}>
+            {!dryRun && (verb === 'remove' ? <IconTrash /> : <IconUserMinus />)}
             {dryRun ? 'Start dry run' : `${verb === 'remove' ? 'Remove' : 'Unfollow'} ${count}`}
           </button>
         </div>
@@ -633,9 +673,15 @@ function JobPanel({
           {job.summary ?? `${job.done}${job.total ? `/${job.total}` : ''}`}
         </span>
         {job.status === 'running' ? (
-          <button onClick={onStop}>Stop</button>
+          <button onClick={onStop}>
+            <IconStop size={14} />
+            Stop
+          </button>
         ) : (
-          <button onClick={onDismiss}>Close</button>
+          <button onClick={onDismiss}>
+            <IconClose size={14} />
+            Close
+          </button>
         )}
       </div>
       {percent !== null && (

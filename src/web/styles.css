@@ -107,7 +107,7 @@ code {
 .header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
   width: min(1128px, 100%);
   margin: 0 auto;
@@ -144,7 +144,7 @@ code {
 
 .tabs {
   display: flex;
-  gap: 6px;
+  gap: 5px;
 }
 
 .actions {
@@ -154,6 +154,11 @@ code {
 }
 
 /* ---------------------------------------------------------------- controls */
+
+/* Icons take the colour of whatever control they sit in. */
+.icon {
+  flex-shrink: 0;
+}
 
 button {
   font: inherit;
@@ -206,9 +211,14 @@ button.danger:hover:not(:disabled) {
 }
 
 .tab {
-  font-size: 14px;
+  font-size: 13.5px;
+  padding: 5px 12px;
   color: var(--dim);
   border-color: var(--border-strong);
+}
+
+.tab.icon-only {
+  padding: 5px 9px;
 }
 
 .tab:hover:not(:disabled) {
@@ -275,22 +285,36 @@ button.danger:hover:not(:disabled) {
   padding: 10px 12px;
 }
 
-.filters > input {
+.search {
+  position: relative;
+  display: flex;
+  align-items: center;
   flex: 1 1 240px;
   min-width: 180px;
+}
+
+.search .icon {
+  position: absolute;
+  left: 10px;
+  color: var(--faint);
+  pointer-events: none;
+}
+
+.search input {
+  width: 100%;
   font: inherit;
   background: var(--surface-2);
   border: 1px solid transparent;
   border-radius: 4px;
   color: var(--text);
-  padding: 8px 12px;
+  padding: 8px 12px 8px 34px;
 }
 
-.filters > input::placeholder {
+.search input::placeholder {
   color: var(--faint);
 }
 
-.filters > input:focus {
+.search input:focus {
   outline: none;
   background: var(--surface);
   border-color: var(--primary);
@@ -470,6 +494,9 @@ button.link:hover:not(:disabled) {
 }
 
 .open {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   color: var(--primary);
   font-size: 13px;
   font-weight: 600;
