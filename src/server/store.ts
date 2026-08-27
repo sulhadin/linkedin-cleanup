@@ -25,6 +25,28 @@ export async function writeSnapshot(kind: DatasetKind, entities: Entity[]): Prom
   return snapshot
 }
 
+/**
+ * A scan only knows what the list page shows, so writing its result verbatim
+ * would erase anything looked up separately — shared-connection counts took
+ * minutes to gather and must survive a rescan.
+ */
+export async function writeScannedSnapshot(
+  kind: DatasetKind,
+  entities: Entity[],
+): Promise<Snapshot> {
+  const previous = await readSnapshot(kind)
+  if (!previous) return writeSnapshot(kind, entities)
+
+  const enrichment = new Map(previous.entities.map((entity) => [entity.id, entity.mutual]))
+  return writeSnapshot(
+    kind,
+    entities.map((entity) => {
+      const mutual = enrichment.get(entity.id)
+      return mutual === undefined ? entity : { ...entity, mutual }
+    }),
+  )
+}
+
 export async function dropFromSnapshot(kind: DatasetKind, ids: Set<string>): Promise<void> {
   const snapshot = await readSnapshot(kind)
   if (!snapshot) return

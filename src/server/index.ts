@@ -13,6 +13,7 @@ import {
   logActions,
   mergeIntoSnapshot,
   readSnapshot,
+  writeScannedSnapshot,
   writeSnapshot,
 } from './store.ts'
 import type { DatasetKind, Entity, JobEvent } from './types.ts'
@@ -81,12 +82,12 @@ app.post('/api/datasets/:kind/scan', (req, res) => {
             message: total ? `${count} of ${total}` : `${count} found`,
           }),
         onCheckpoint: async (partial) => {
-          await writeSnapshot(kind, partial)
+          await writeScannedSnapshot(kind, partial)
           j.emit({ type: 'log', message: `Saved ${partial.length} so far.` })
         },
         shouldStop: () => j.shouldStop,
       })
-      await writeSnapshot(kind, entities)
+      await writeScannedSnapshot(kind, entities)
       return `Found ${entities.length}.`
     })
     res.json({ jobId: job.state.id })

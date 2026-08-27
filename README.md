@@ -1,7 +1,7 @@
-# incleanup
+# LinkedIn Cleanup
 
-Clean up your LinkedIn from your keyboard: prune connections you no longer
-recognise, and pages and people cluttering your feed.
+**incleanup** — clean up your LinkedIn from your keyboard: prune connections you
+no longer recognise, and pages and people cluttering your feed.
 
 It reads your lists into a fast local list. You pick with `↑` `↓` and `space`,
 press `↵`, and it does the clicking for you.
@@ -114,6 +114,9 @@ feeding rows.
 says what it hit. Rescan (`r`) and try that one again.
 
 ## Notes
+
+Not affiliated with, endorsed by, or connected to LinkedIn. It drives your own
+account, in your own browser, on your own machine.
 
 Automating your own account is your call and your risk — LinkedIn's User
 Agreement discourages automated access regardless of intent.

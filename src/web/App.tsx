@@ -14,7 +14,7 @@ import {
 import { looksCorporate } from './heuristics.ts'
 import { useJob } from './useJob.ts'
 
-const ROW_HEIGHT = 68
+const ROW_HEIGHT = 76
 const OVERSCAN = 6
 
 const MUTUAL_OPTIONS = [
@@ -310,7 +310,11 @@ export function App() {
     <div className="app">
       <header className="header">
         <div className="brand">
-          <h1>incleanup</h1>
+          <LinkedInMark />
+          <h1>
+            <span className="in">in</span>cleanup
+          </h1>
+          <span className="subtitle">LinkedIn cleanup</span>
           <StatusPill status={status} />
         </div>
         <nav className="tabs">
@@ -327,14 +331,15 @@ export function App() {
         </nav>
         <div className="actions">
           <button onClick={() => void runScan()} disabled={busy}>
-            {entities.length === 0 ? 'Scan' : 'Rescan'} <kbd>r</kbd>
+            {entities.length === 0 ? 'Scan' : 'Rescan'}
           </button>
           <button
             className="danger"
             onClick={() => setConfirming(true)}
             disabled={busy || selected.size === 0}
           >
-            {verb === 'remove' ? 'Remove' : 'Unfollow'} {selected.size || ''} <kbd>↵</kbd>
+            {verb === 'remove' ? 'Remove' : 'Unfollow'}
+            {selected.size > 0 && ` ${selected.size}`}
           </button>
         </div>
       </header>
@@ -377,7 +382,7 @@ export function App() {
         </label>
 
         <button onClick={selectAllFiltered} disabled={filtered.length === 0}>
-          {allFilteredSelected ? 'Deselect' : 'Select'} all {filtered.length} <kbd>a</kbd>
+          {allFilteredSelected ? 'Deselect' : 'Select'} all {filtered.length}
         </button>
       </div>
 
@@ -561,15 +566,12 @@ function ConfirmDialog({
         </p>
         <label className="dry-run">
           <input type="checkbox" checked={dryRun} onChange={onToggleDryRun} />
-          Dry run — find each one and check the control, but never click it <kbd>d</kbd>
+          Dry run — find each one and check the control, but never click it
         </label>
         <div className="dialog-actions">
-          <button onClick={onCancel}>
-            Cancel <kbd>esc</kbd>
-          </button>
+          <button onClick={onCancel}>Cancel</button>
           <button className="danger" onClick={onConfirm}>
-            {dryRun ? 'Start dry run' : `${verb === 'remove' ? 'Remove' : 'Unfollow'} ${count}`}{' '}
-            <kbd>↵</kbd>
+            {dryRun ? 'Start dry run' : `${verb === 'remove' ? 'Remove' : 'Unfollow'} ${count}`}
           </button>
         </div>
       </div>
@@ -625,6 +627,17 @@ function JobPanel({
         </div>
       )}
     </div>
+  )
+}
+
+function LinkedInMark() {
+  return (
+    <svg className="mark" viewBox="0 0 24 24" role="img" aria-label="LinkedIn">
+      <path
+        fill="currentColor"
+        d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.225 0z"
+      />
+    </svg>
   )
 }
 
