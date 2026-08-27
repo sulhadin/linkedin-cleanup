@@ -502,7 +502,7 @@ function Row({
       {entity.avatarUrl && !imageBroken ? (
         <img
           className="avatar"
-          src={entity.avatarUrl}
+          src={`/api/avatar?u=${encodeURIComponent(entity.avatarUrl)}`}
           alt=""
           loading="lazy"
           referrerPolicy="no-referrer"

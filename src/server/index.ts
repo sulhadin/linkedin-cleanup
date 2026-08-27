@@ -1,4 +1,7 @@
 import path from 'node:path'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
+import type { ReadableStream as NodeReadableStream } from 'node:stream/web'
 import { fileURLToPath } from 'node:url'
 import express from 'express'
 import { config } from './config.ts'
@@ -58,6 +61,38 @@ app.get('/api/status', async (_req, res) => {
     activeJob: job ? { id: job.state.id, kind: job.state.kind } : null,
     datasets: datasetList(),
   })
+})
+
+/**
+ * Profile photos come from media.licdn.com, which privacy blockers refuse to
+ * load from a non-LinkedIn origin — the pictures simply vanish. Serving them
+ * through here makes them same-origin. The host allowlist is what keeps this
+ * from being an open proxy.
+ */
+app.get('/api/avatar', async (req, res) => {
+  const raw = typeof req.query.u === 'string' ? req.query.u : ''
+
+  let target: URL
+  try {
+    target = new URL(raw)
+  } catch {
+    return res.status(400).end()
+  }
+
+  if (target.protocol !== 'https:' || !/(^|\.)licdn\.com$/.test(target.hostname)) {
+    return res.status(403).end()
+  }
+
+  try {
+    const upstream = await fetch(target, { redirect: 'follow' })
+    if (!upstream.ok || !upstream.body) return res.status(upstream.status).end()
+
+    res.setHeader('Content-Type', upstream.headers.get('content-type') ?? 'image/jpeg')
+    res.setHeader('Cache-Control', 'private, max-age=86400')
+    await pipeline(Readable.fromWeb(upstream.body as NodeReadableStream), res)
+  } catch {
+    if (!res.headersSent) res.status(502).end()
+  }
 })
 
 app.get('/api/datasets/:kind', async (req, res) => {

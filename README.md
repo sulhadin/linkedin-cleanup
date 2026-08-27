@@ -110,6 +110,10 @@ the page.
 connections page yourself for a moment and scan again; LinkedIn sometimes stops
 feeding rows.
 
+**Profile photos missing** — they are served through incleanup itself so
+blockers do not drop them. If one still fails, the row shows the person's
+initials instead.
+
 **Something says "failed"** — nothing was removed for that person. The message
 says what it hit. Rescan (`r`) and try that one again.
 

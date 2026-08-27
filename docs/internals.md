@@ -99,6 +99,21 @@ Two traps:
   `mutual: null` and are shown as `Unknown`. They must never be recorded as
   zero, or filtering for "0 shared" quietly sweeps up people nobody looked up.
 
+## Profile photos are proxied
+
+Photos live on `media.licdn.com`. Loading them straight from a page served on
+localhost is exactly the cross-origin request privacy blockers drop, and the
+pictures silently vanish — the URLs themselves are fine, and fetch them from
+Node and they return 200. `/api/avatar` re-serves them so the browser sees
+same-origin images.
+
+The host allowlist (`https` and a real `licdn.com` suffix) is what stops that
+endpoint being an open proxy — without it, it would happily fetch anything,
+including services bound to localhost.
+
+The URLs are also signed and expire in weeks, so the row falls back to initials
+when an image will not load, whatever the reason.
+
 ## Why not the internal API
 
 LinkedIn's public API does not expose connection management at all, and the
