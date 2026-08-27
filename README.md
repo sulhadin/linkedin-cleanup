@@ -1,4 +1,9 @@
-# LinkedIn Cleanup
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/logo-dark.png">
+    <img src="docs/screenshots/logo-light.png" alt="LinkedIn Cleanup" width="300">
+  </picture>
+</p>
 
 Clean up your LinkedIn from your keyboard: prune connections you no longer
 recognise, and pages and people cluttering your feed.

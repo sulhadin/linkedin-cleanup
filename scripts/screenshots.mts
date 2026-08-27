@@ -75,6 +75,30 @@ async function setTheme(page: Page, theme: 'light' | 'dark') {
   await settle(page, 300)
 }
 
+/**
+ * Crops the app's own wordmark for the README, rather than redrawing it by
+ * hand: the logo there is then the real one, and it follows the header
+ * whenever that changes. Zoomed first so it stays crisp on a dense display.
+ */
+async function shootLogo(page: Page, name: string) {
+  await page.evaluate(`(() => {
+    const style = document.createElement('style')
+    style.id = 'logo-shot'
+    style.textContent =
+      '.brand { zoom: 2; padding: 10px 16px; background: var(--surface); border-radius: 10px; }' +
+      // The connection status is app state, not part of the mark.
+      '.brand .pill { display: none; }'
+    document.head.appendChild(style)
+  })()`)
+  await settle(page, 300)
+
+  await page.locator('.brand').screenshot({ path: path.join(OUT, `${name}.png`) })
+  console.log('wrote', `${name}.png`)
+
+  await page.evaluate(`document.getElementById('logo-shot')?.remove()`)
+  await settle(page, 200)
+}
+
 /** Clears filters and selection so each shot starts from a known state. */
 async function reset(page: Page) {
   await page.evaluate(`(() => {
@@ -98,6 +122,7 @@ try {
   await settle(page, 2500)
   await setTheme(page, 'light')
   await reset(page)
+  await shootLogo(page, 'logo-light')
   await shoot(page, 'connections')
 
   // Filtered down to people sharing nobody, with a few marked for removal.
@@ -136,6 +161,7 @@ try {
 
   // Followed pages, in dark mode.
   await setTheme(page, 'dark')
+  await shootLogo(page, 'logo-dark')
   await page.evaluate(`(() => {
     const tab = [...document.querySelectorAll('.tab')].find((b) => /Followed pages/.test(b.textContent))
     if (tab) tab.click()
