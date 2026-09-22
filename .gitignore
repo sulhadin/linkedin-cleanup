@@ -9,3 +9,6 @@ data/
 chrome-profile/
 *.connections.json
 .DS_Store
+# agentbase: fetched shared content lives here; generated tool files are committed on purpose
+.rulesync/rules/.curated/
+.rulesync/skills/.curated/
