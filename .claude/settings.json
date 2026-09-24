@@ -1,6 +1,1 @@
-{
-  "extraKnownMarketplaces": {
-    "agentbase": { "source": { "source": "github", "repo": "sulhadin/agentbase" } }
-  },
-  "enabledPlugins": { "agentbase@agentbase": true }
-}
+{}
